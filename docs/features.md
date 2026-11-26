@@ -4,6 +4,14 @@ Last updated: 2026-11-26
 
 | Feature | Route | UI | Data/API | Tests |
 | --- | --- | --- | --- | --- |
-| Home | `/` | Localized starter screen with an embedded Flame canvas | Local only; no backend calls | `test/home_bloc_test.dart`, `test/app_test.dart` |
+| Home → Yum Yum Kitchen Madness | `/` | Standalone launch of `YumYumKitchenScreen` (package `yumyum_kitchen`): entrance, shift tickets, brief, live shift, pause, receipt, upgrade shop | Local only (`shared_preferences` progress); no backend calls | `test/app/screens_golden_test.dart`, `test/app_test.dart`, `packages/yumyum_kitchen/test/` |
+
+## Yum Yum Kitchen Madness (`packages/yumyum_kitchen`)
+
+- **Full-screen layout**: the 1280×720 design canvas is scaled with cover fit and drawn edge to edge in immersive landscape (no letterbox bars). Android draws under display cutouts (`shortEdges`, API 28+).
+- **Safe stage**: screen inset by `MediaQuery.viewPadding` + 24 px on every side, computed by `StageLayout` (`presentation/game/stage_layout.dart`).
+- **Zones**: art (whole screen, not tappable), action (lower 45 % of the screen inside the safe stage: pack, pots, bowls, discard targets, garnish bins), HUD (48 px band at the top of the safe stage: goal, tutorial hint, combo, coins, clock, pause). Order tickets sit between the HUD and the action zone.
+- **Debug**: `YumYumKitchenScreen(showHitBoxes: true)` paints the safe stage, zones and hit boxes.
+- Rules, campaign and progress are pure Dart in `domain/`; progress is saved locally and settled once per run.
 
 New game areas belong in `lib/features/<feature>/` with domain, data, presentation, and DI layers when those layers have responsibilities. Flame components stay in the owning feature's presentation/game code. Game rules and persistent state belong in domain/data respectively.

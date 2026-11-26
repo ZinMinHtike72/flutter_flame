@@ -73,7 +73,7 @@ Use the 1280×720 cover-fit canvas with the safe stage above, 48 logical pixel t
 ## Implementation
 GitHub issue numbers are in brackets.
 - [ ] status: pending - Prove dual-SDK package compatibility [#2]
-- [ ] status: pending - Build the full-screen cover viewport, safe stage and three zones [#3]
+- [x] status: done - Build the full-screen cover viewport, safe stage and three zones [#3] — `StageLayout`, cover-fit art, immersive mode, Android `shortEdges`, HUD on safe stage, Myanmar goldens fixed
 - [ ] status: pending - Enforce 48 px non-overlapping hit areas with a debug overlay and test [#23]
 - [ ] status: pending - Block game input behind overlay scrims [#24]
 - [ ] status: pending - Fixed 30 Hz rules step and 30 fps render cap [#25]

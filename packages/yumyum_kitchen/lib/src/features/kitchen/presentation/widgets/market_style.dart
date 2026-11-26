@@ -67,7 +67,7 @@ class MarketButton extends StatelessWidget {
             child: Opacity(
               opacity: enabled ? 1 : .55,
               child: ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     color: primary ? gold : const Color(0xEE263D38),
@@ -134,8 +134,21 @@ class MarketBackdrop extends StatelessWidget {
           ),
         ),
       ),
-      child,
+      SafeStage(child: child),
     ],
+  );
+}
+
+/// Insets [child] to the safe stage: system view padding plus the 24 px
+/// gesture-edge margin on every side. Backgrounds stay edge to edge.
+class SafeStage extends StatelessWidget {
+  const SafeStage({required this.child, super.key});
+  final Widget child;
+  static const margin = 24.0;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: MediaQuery.viewPaddingOf(context) + const EdgeInsets.all(margin),
+    child: child,
   );
 }
 

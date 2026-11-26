@@ -27,6 +27,7 @@ class YumYumKitchenScreen extends StatelessWidget {
     this.onExit,
     this.onOpenProduct,
     this.embedded = true,
+    this.showHitBoxes = false,
     this.restoreOrientations = const [
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
@@ -35,6 +36,9 @@ class YumYumKitchenScreen extends StatelessWidget {
   final VoidCallback? onExit;
   final Future<bool> Function(NoodleProduct product)? onOpenProduct;
   final bool embedded;
+
+  /// Paints the safe stage, zones and hit boxes over the game (debug aid).
+  final bool showHitBoxes;
   final List<DeviceOrientation> restoreOrientations;
   @override
   Widget build(BuildContext context) => Localizations.override(
@@ -64,14 +68,21 @@ class YumYumKitchenScreen extends StatelessWidget {
 }
 
 class _Session {
-  _Session(KitchenBloc bloc, KitchenAudio audio, {required this.embedded, required this.restore})
-    : game = YumYumKitchenGame(bloc, audio),
-      lifecycle = AppLifecycleListener(
-        onInactive: bloc.suspend,
-        onPause: bloc.suspend,
-        onResume: bloc.foreground,
-      ) {
+  _Session(
+    KitchenBloc bloc,
+    KitchenAudio audio, {
+    required this.embedded,
+    required this.restore,
+  }) : game = YumYumKitchenGame(bloc, audio),
+       lifecycle = AppLifecycleListener(
+         onInactive: bloc.suspend,
+         onPause: bloc.suspend,
+         onResume: bloc.foreground,
+       ) {
     unawaited(orient(landscape));
+    unawaited(
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky),
+    );
   }
   static const landscape = [
     DeviceOrientation.landscapeLeft,
@@ -93,6 +104,7 @@ class _Session {
 
   Future<void> leave() async {
     if (embedded) {
+      await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
       await orient(restore);
     }
   }
@@ -160,11 +172,19 @@ class _Content extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final session = context.read<_Session>();
+    final padding = MediaQuery.viewPaddingOf(context);
     final game = session.game
-      ..reducedMotion = MediaQuery.disableAnimationsOf(context);
+      ..reducedMotion = MediaQuery.disableAnimationsOf(context)
+      ..showHitBoxes = options.showHitBoxes
+      ..insets = Rect.fromLTRB(
+        padding.left,
+        padding.top,
+        padding.right,
+        padding.bottom,
+      );
     return AppScaffold(
       backgroundColor: ink,
-      body: SafeArea(
+      body: SizedBox.expand(
         child: GameWidget<YumYumKitchenGame>(
           game: game,
           loadingBuilder: (context) => MarketBackdrop(

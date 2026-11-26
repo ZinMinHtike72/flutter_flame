@@ -13,63 +13,67 @@ class ShiftHud extends StatelessWidget {
     final s = context.kitchen;
     return Stack(
       children: [
-        Positioned(
-          left: 8,
-          right: 8,
-          top: 4,
-          child: Row(
-            children: [
-              Expanded(
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: _HudStat(
-                    run.shift.goal == Goal.coins
-                        ? Icons.monetization_on_rounded
-                        : Icons.people_alt_rounded,
-                    "${run.progress}/${run.shift.target}",
-                    s.goal,
-                  ),
+        Positioned.fill(
+          child: SafeStage(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: SizedBox(
+                height: 48,
+                child: Row(
+                  children: [
+                    _HudStat(
+                      run.shift.goal == Goal.coins
+                          ? Icons.monetization_on_rounded
+                          : Icons.people_alt_rounded,
+                      "${run.progress}/${run.shift.target}",
+                      s.goal,
+                    ),
+                    Expanded(
+                      child: run.guide == Guide.done
+                          ? const SizedBox.shrink()
+                          : IgnorePointer(
+                              child: Center(
+                                child: FittedBox(
+                                  child: _HudStat(
+                                    Icons.touch_app_rounded,
+                                    [
+                                      s.guidePack,
+                                      s.guideWait,
+                                      s.guidePot,
+                                      s.guideServe,
+                                    ][run.guide.index],
+                                    s.tutorial,
+                                  ),
+                                ),
+                              ),
+                            ),
+                    ),
+                    _HudStat(
+                      Icons.local_fire_department_rounded,
+                      "×${(run.quarterMultiplier / 4).toStringAsFixed(2)}",
+                      s.combo,
+                    ),
+                    const SizedBox(width: 4),
+                    _HudStat(Icons.toll_rounded, "${run.coins}", s.coins),
+                    const SizedBox(width: 4),
+                    _HudStat(
+                      Icons.timer_outlined,
+                      "${run.secondsLeft ~/ 60}:${(run.secondsLeft % 60).toString().padLeft(2, "0")}",
+                      s.clock,
+                    ),
+                    const SizedBox(width: 5),
+                    MarketButton(
+                      s.pause,
+                      () => context.act(ActionType.pause),
+                      icon: Icons.pause_rounded,
+                      compact: true,
+                    ),
+                  ],
                 ),
-              ),
-              _HudStat(
-                Icons.local_fire_department_rounded,
-                "×${(run.quarterMultiplier / 4).toStringAsFixed(2)}",
-                s.combo,
-              ),
-              const SizedBox(width: 4),
-              _HudStat(Icons.toll_rounded, "${run.coins}", s.coins),
-              const SizedBox(width: 4),
-              _HudStat(
-                Icons.timer_outlined,
-                "${run.secondsLeft ~/ 60}:${(run.secondsLeft % 60).toString().padLeft(2, "0")}",
-                s.clock,
-              ),
-              const SizedBox(width: 5),
-              MarketButton(
-                s.pause,
-                () => context.act(ActionType.pause),
-                icon: Icons.pause_rounded,
-                compact: true,
-              ),
-            ],
-          ),
-        ),
-        if (run.guide != Guide.done)
-          Align(
-            alignment: const Alignment(0, .95),
-            child: IgnorePointer(
-              child: _HudStat(
-                Icons.touch_app_rounded,
-                [
-                  s.guidePack,
-                  s.guideWait,
-                  s.guidePot,
-                  s.guideServe,
-                ][run.guide.index],
-                s.tutorial,
               ),
             ),
           ),
+        ),
       ],
     );
   }
@@ -113,53 +117,55 @@ class PauseMenu extends StatelessWidget {
     final s = context.kitchen;
     return ColoredBox(
       color: const Color(0xDA112A2B),
-      child: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(s.paused, style: marketText(32, bold: true)),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 8,
-                runSpacing: 5,
-                alignment: WrapAlignment.center,
-                children: [
-                  MarketButton(
-                    s.resume,
-                    () => context.act(ActionType.resume),
-                    primary: true,
-                    icon: Icons.play_arrow_rounded,
-                  ),
-                  MarketButton(
-                    s.restart,
-                    () => context.act(ActionType.start, state.level),
-                    icon: Icons.replay_rounded,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 5,
-                alignment: WrapAlignment.center,
-                children: [
-                  MarketButton(
-                    "${s.music} · ${state.profile.sound ? s.on : s.off}",
-                    () => context.act(ActionType.sound),
-                    icon: Icons.volume_up_rounded,
-                  ),
-                  MarketButton(
-                    "${s.vibration} · ${state.profile.haptics ? s.on : s.off}",
-                    () => context.act(ActionType.haptics),
-                    icon: Icons.vibration_rounded,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              MarketButton(s.exit, exit, icon: Icons.exit_to_app_rounded),
-            ],
+      child: SafeStage(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(s.paused, style: marketText(32, bold: true)),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 5,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    MarketButton(
+                      s.resume,
+                      () => context.act(ActionType.resume),
+                      primary: true,
+                      icon: Icons.play_arrow_rounded,
+                    ),
+                    MarketButton(
+                      s.restart,
+                      () => context.act(ActionType.start, state.level),
+                      icon: Icons.replay_rounded,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 5,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    MarketButton(
+                      "${s.music} · ${state.profile.sound ? s.on : s.off}",
+                      () => context.act(ActionType.sound),
+                      icon: Icons.volume_up_rounded,
+                    ),
+                    MarketButton(
+                      "${s.vibration} · ${state.profile.haptics ? s.on : s.off}",
+                      () => context.act(ActionType.haptics),
+                      icon: Icons.vibration_rounded,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                MarketButton(s.exit, exit, icon: Icons.exit_to_app_rounded),
+              ],
+            ),
           ),
         ),
       ),

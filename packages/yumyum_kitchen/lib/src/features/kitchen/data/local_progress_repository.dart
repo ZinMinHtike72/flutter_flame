@@ -6,7 +6,7 @@ import "package:yumyum_kitchen/src/features/kitchen/domain/progress.dart";
 class LocalProgressRepository implements ProgressRepository {
   LocalProgressRepository();
   static const _key = "yumyum_kitchen.progress.v1";
-  static Future<void> _tail = Future.value();
+  Future<void> _tail = Future.value();
 
   @override
   Future<KitchenProgress> read() async {
