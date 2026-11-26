@@ -47,7 +47,7 @@ Pause, results and shop use an opaque or blurred scrim. Only the overlay's own c
 
 ## Steam and pot realism
 Follows the separate steam and pot spec (not yet attached; issues record assumptions until it arrives).
-- Pot and lid sprite set: pot body and lid per state (empty, cooking, ready, burnt), same angle and light as the counter.
+- Pot and lid sprite set: realistic painted pots per state (empty, cooking, ready, burnt) sliced so the lid moves on its own; same angle and light as the counter. (A hand-drawn SVG set was tried and rejected as too flat next to the painted art; flutter_svg has no blur or texture filters.)
 - Steam particle system: pooled puffs whose rate and size follow the pot state, scaled by quality tier, hidden under reduced motion except a static wisp.
 - Boil animation and audio sync: bubbles, lid rattle and the boil loop start, peak and stop on the same rules-step frame.
 
@@ -86,7 +86,7 @@ GitHub issue numbers are in brackets.
 - [ ] status: pending - Produce environment layers [#8]
 - [ ] status: pending - Produce food and appliance sprites [#9]
 - [ ] status: pending - Produce customer poses [#10]
-- [ ] status: pending - Pot and lid sprite set [#28]
+- [x] status: done - Pot and lid sprite set [#28] — realistic painted slices (`pot_sprites.dart`): full pot per state, ready lid and body split at row 130/362, cooking dome above 116/362; flat SVG set tried and dropped for realism
 - [x] status: done - Steam particle system [#29] — `steam_field.dart` (typed-array pool, one `drawRawAtlas`, tier budgets), static wisp under reduced motion; `steam_field_test.dart`, `steam_motion` / `steam_reduced_motion` goldens
 - [ ] status: pending - Boil animation and audio sync [#30]
 - [ ] status: pending - Integrate animation, audio, and reduced motion [#11]

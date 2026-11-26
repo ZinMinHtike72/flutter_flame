@@ -11,6 +11,7 @@ import "package:yumyum_kitchen/src/features/kitchen/presentation/bloc/kitchen_bl
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/frame_timing.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/kitchen_audio.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/market_art.dart";
+import "package:yumyum_kitchen/src/features/kitchen/presentation/game/pot_sprites.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/quality_benchmark.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/stage_layout.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/steam_field.dart";
@@ -49,6 +50,9 @@ class YumYumKitchenGame extends FlameGame {
     final saved = bloc.state.profile.qualityTier;
     return saved == null ? benchmarkTier : SteamQuality.values[saved];
   }
+
+  /// Realistic pot body and lid slices from the painted sheet (set at load).
+  PotSprites? potSprites;
 
   /// Soft puff sprite baked at load.
   Image? puff;
@@ -90,6 +94,7 @@ class YumYumKitchenGame extends FlameGame {
   Future<void> onLoad() async {
     await super.onLoad();
     await Future.wait([art.load(), audio.preload()]);
+    potSprites = PotSprites(art.images.fromCache("equipment.webp"));
     final puff = this.puff = await SteamField.bakePuff();
     if (bloc.state.profile.qualityTier == null) {
       benchmarkTier = QualityBenchmark.tierFor(QualityBenchmark.measure(puff));
@@ -159,6 +164,7 @@ class _Counter extends PositionComponent with TapCallbacks {
   _Counter(this.kitchen);
   final YumYumKitchenGame kitchen;
   final _paint = Paint();
+  final _spritePaint = Paint()..filterQuality = FilterQuality.medium;
   final _atlasPaint = Paint()..filterQuality = FilterQuality.low;
   final _wispPaint = Paint()
     ..colorFilter = const ColorFilter.mode(
@@ -364,10 +370,17 @@ class _Counter extends PositionComponent with TapCallbacks {
     final bob = ready && !kitchen.reducedMotion
         ? math.sin(run.now / 100) * 2
         : 0.0;
+    final sprites = kitchen.potSprites;
     c
       ..save()
       ..translate(0, bob);
-    art.item(c, pot.phase.index, rect);
+    if (sprites == null) {
+      art.item(c, pot.phase.index, rect);
+    } else {
+      sprites
+        ..drawBody(c, pot.phase, rect, _spritePaint)
+        ..drawLid(c, pot.phase, rect, _spritePaint);
+    }
     c.restore();
     if (pot.phase != PotPhase.cooking && !ready) {
       return;

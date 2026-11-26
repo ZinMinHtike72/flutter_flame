@@ -16,6 +16,7 @@ Last updated: 2026-11-26
 - **Frame rate**: Flame's own loop stays paused; a vsync callback steps the engine through `FrameThrottle` at 30 fps (60/90/120 Hz displays), and `FixedStepClock` advances the rules in exact 1000/30 ms steps (max 5 catch-up steps).
 - **Steam**: pooled steam (ready/cooking) and smoke (burnt) puffs per pot in fixed typed arrays, drawn with one `drawRawAtlas`; budget per pot 4/10/18 by quality tier; reduced motion shows one static wisp.
 - **Graphics quality**: on first launch a startup benchmark (two pots of high-tier steam, update + picture recording) picks low/medium/high and saves it; the pause menu's Graphics button cycles the tier. The benchmark never overrides a saved choice.
+- **Pots**: realistic painted pot per state from `equipment.webp`; the ready pot's lifted lid and the cooking pot's glass dome are separate slices (`PotSprites`) so the lid can lift, rattle and tilt.
 - **Debug**: `YumYumKitchenScreen(showHitBoxes: true)` paints the safe stage, zones and hit boxes; the standalone app enables it with `--flavor development --dart-define=SHOW_HIT_BOXES=true`.
 - Rules, campaign and progress are pure Dart in `domain/`; progress is saved locally and settled once per run.
 
