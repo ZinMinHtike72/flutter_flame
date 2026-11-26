@@ -8,7 +8,7 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp.router(
-    debugShowCheckedModeBanner:false,
+    debugShowCheckedModeBanner: false,
     onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
     theme: LightTheme.light(),
     darkTheme: DarkTheme.dark(),

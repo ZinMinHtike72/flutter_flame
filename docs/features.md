@@ -11,7 +11,8 @@ Last updated: 2026-11-26
 - **Full-screen layout**: the 1280×720 design canvas is scaled with cover fit and drawn edge to edge in immersive landscape (no letterbox bars). Android draws under display cutouts (`shortEdges`, API 28+).
 - **Safe stage**: screen inset by `MediaQuery.viewPadding` + 24 px on every side, computed by `StageLayout` (`presentation/game/stage_layout.dart`).
 - **Zones**: art (whole screen, not tappable), action (lower 45 % of the screen inside the safe stage: pack, pots, bowls, discard targets, garnish bins), HUD (48 px band at the top of the safe stage: goal, tutorial hint, combo, coins, clock, pause). Order tickets sit between the HUD and the action zone.
-- **Debug**: `YumYumKitchenScreen(showHitBoxes: true)` paints the safe stage, zones and hit boxes.
+- **Hit areas**: every target is ≥ 48×48, inside the safe stage and apart from every other (HUD pause included); `test/app/hit_area_test.dart` enforces it on five device sizes.
+- **Debug**: `YumYumKitchenScreen(showHitBoxes: true)` paints the safe stage, zones and hit boxes; the standalone app enables it with `--flavor development --dart-define=SHOW_HIT_BOXES=true`.
 - Rules, campaign and progress are pure Dart in `domain/`; progress is saved locally and settled once per run.
 
 New game areas belong in `lib/features/<feature>/` with domain, data, presentation, and DI layers when those layers have responsibilities. Flame components stay in the owning feature's presentation/game code. Game rules and persistent state belong in domain/data respectively.
