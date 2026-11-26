@@ -120,4 +120,61 @@ void main() {
     );
     expect(SteamField.rate(PotPhase.burnt), greaterThan(0));
   });
+
+  group("painted textures", () {
+    final steamFrames = [
+      for (var i = 0; i < 8; i++) Rect.fromLTWH(i * 100.0, 0, 90, 200),
+    ];
+    final smokeFrames = [
+      for (var i = 0; i < 4; i++) Rect.fromLTWH(i * 100.0, 300, 90, 180),
+    ];
+
+    Set<double> lefts(SteamField field) => {
+      for (var i = 0; i < field.alive; i++) field.rects[i * 4],
+    };
+
+    test("ready pots use the big wisps, cooking pots the small ones", () {
+      final ready = SteamField(emitters: 2)
+        ..useTextures(steamFrames, smokeFrames);
+      expect(ready.textured, isTrue);
+      run(ready, pots(PotPhase.ready), SteamQuality.high, 2);
+      expect(lefts(ready).every((l) => l >= 400 && l < 800), isTrue);
+
+      final cooking = SteamField(emitters: 2)
+        ..useTextures(steamFrames, smokeFrames);
+      run(cooking, pots(PotPhase.cooking), SteamQuality.high, 2);
+      expect(lefts(cooking).every((l) => l < 400), isTrue);
+    });
+
+    test("burnt pots use smoke frames; rects follow swapped particles", () {
+      final field = SteamField(emitters: 2)
+        ..useTextures(steamFrames, smokeFrames);
+      final list = pots(PotPhase.burnt, PotPhase.ready);
+      run(field, list, SteamQuality.high, 3);
+      for (var i = 0; i < field.alive; i++) {
+        final top = field.rects[i * 4 + 1];
+        final height = field.rects[i * 4 + 3] - top;
+        // Every live slot holds a whole, valid frame from one of the sets.
+        expect(
+          top == 0 && height == 200 || top == 300 && height == 180,
+          isTrue,
+        );
+      }
+      expect(field.aliveAbove(0), greaterThan(0));
+    });
+
+    test("textured render draws painted colours untinted", () async {
+      final puff = await SteamField.bakePuff();
+      final field = SteamField(emitters: 2)
+        ..useTextures(steamFrames, smokeFrames);
+      run(field, pots(PotPhase.ready), SteamQuality.high, 1);
+      final recorder = PictureRecorder();
+      field.render(Canvas(recorder), puff, Paint());
+      for (var i = 0; i < field.alive; i++) {
+        expect(field.colors[i] & 0xFFFFFF, 0xFFFFFF);
+      }
+      recorder.endRecording().dispose();
+      puff.dispose();
+    });
+  });
 }

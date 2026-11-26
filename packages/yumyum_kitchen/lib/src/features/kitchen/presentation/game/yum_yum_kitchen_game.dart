@@ -1,12 +1,12 @@
 import "dart:async";
 import "dart:math" as math;
-import "dart:typed_data";
 import "dart:ui";
 
 import "package:flame/components.dart";
 import "package:flame/events.dart";
 import "package:flame/game.dart";
 import "package:flutter/scheduler.dart";
+import "package:flutter/services.dart";
 import "package:yumyum_kitchen/src/features/kitchen/domain/kitchen_run.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/bloc/kitchen_bloc.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/boil_sync.dart";
@@ -15,6 +15,7 @@ import "package:yumyum_kitchen/src/features/kitchen/presentation/game/kitchen_au
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/market_art.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/pot_sprites.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/quality_benchmark.dart";
+import "package:yumyum_kitchen/src/features/kitchen/presentation/game/sprite_atlas.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/stage_layout.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/steam_field.dart";
 
@@ -56,7 +57,10 @@ class YumYumKitchenGame extends FlameGame {
   /// Realistic pot body and lid slices from the painted sheet (set at load).
   PotSprites? potSprites;
 
-  /// Soft puff sprite baked at load.
+  /// Painted steam wisps and smoke puffs.
+  SpriteAtlas? smokeAtlas;
+
+  /// Soft puff sprite baked at load (benchmark workload and fallback).
   Image? puff;
   KitchenRun? _steamRun;
 
@@ -128,11 +132,27 @@ class YumYumKitchenGame extends FlameGame {
 
   Rect _layoutInsets = Rect.zero;
 
+  /// Loads a packed atlas (`assets/images/<name>.webp` + `.json`). The JSON
+  /// is read uncached: a cached future from an earlier, disposed zone would
+  /// never complete (seen across widget tests).
+  Future<SpriteAtlas> loadAtlas(String name) async {
+    final json = await rootBundle.loadString(
+      "packages/yumyum_kitchen/assets/images/$name.json",
+      cache: false,
+    );
+    return SpriteAtlas.fromJson(await art.images.load("$name.webp"), json);
+  }
+
   @override
   Future<void> onLoad() async {
     await super.onLoad();
     await Future.wait([art.load(), audio.preload()]);
-    potSprites = PotSprites(art.images.fromCache("equipment.webp"));
+    potSprites = PotSprites(await loadAtlas("pots"));
+    final smoke = smokeAtlas = await loadAtlas("smoke");
+    steam.useTextures(
+      [for (var i = 0; i < 8; i++) smoke.frame(smoke.id("steam_$i")).source],
+      [for (var i = 0; i < 4; i++) smoke.frame(smoke.id("smoke_$i")).source],
+    );
     final puff = this.puff = await SteamField.bakePuff();
     if (bloc.state.profile.qualityTier == null) {
       benchmarkTier = QualityBenchmark.tierFor(QualityBenchmark.measure(puff));
@@ -203,6 +223,11 @@ class _Counter extends PositionComponent with TapCallbacks {
   final YumYumKitchenGame kitchen;
   final _paint = Paint();
   final _spritePaint = Paint()..filterQuality = FilterQuality.medium;
+
+  /// The bubbling surface is drawn see-through so the noodles show.
+  final _boilPaint = Paint()
+    ..filterQuality = FilterQuality.medium
+    ..color = const Color(0xB3FFFFFF);
   final _atlasPaint = Paint()..filterQuality = FilterQuality.low;
   final _wispPaint = Paint()
     ..colorFilter = const ColorFilter.mode(
@@ -285,7 +310,7 @@ class _Counter extends PositionComponent with TapCallbacks {
     }
     final puff = kitchen.puff;
     if (puff != null && !kitchen.reducedMotion) {
-      kitchen.steam.render(c, puff, _atlasPaint);
+      kitchen.steam.render(c, kitchen.smokeAtlas?.image ?? puff, _atlasPaint);
     }
     for (var i = 0; i < run.bowls.length; i++) {
       _bowl(c, layout, run, i);
@@ -350,34 +375,6 @@ class _Counter extends PositionComponent with TapCallbacks {
     }
   }
 
-  /// Bubble points reused every frame (x, y pairs), one exact-size buffer
-  /// per bubble count so drawing needs no views.
-  final _simmerPoints = Float32List(6);
-  final _rollingPoints = Float32List(14);
-  final _bubblePaint = Paint()
-    ..color = const Color(0x99FFFDF2)
-    ..strokeCap = StrokeCap.round;
-
-  /// Rising bubbles in the pot mouth; more and bigger at the rolling boil.
-  void _bubbles(Canvas c, Rect pot, int count, int now) {
-    if (count == 0) {
-      return;
-    }
-    final points = count > 3 ? _rollingPoints : _simmerPoints;
-    final n = points.length ~/ 2;
-    final cx = pot.left + pot.width * .5;
-    final cy = pot.top + pot.height * .41;
-    final rx = pot.width * .26;
-    final ry = pot.height * .05;
-    for (var i = 0; i < n; i++) {
-      final t = ((now + i * 137) % 600) / 600;
-      points[i * 2] = cx + math.cos(i * 2.4 + t) * rx * (.3 + i / 10);
-      points[i * 2 + 1] = cy + math.sin(i * 1.7) * ry - t * ry;
-    }
-    _bubblePaint.strokeWidth = pot.width * (count > 3 ? .035 : .025);
-    c.drawRawPoints(PointMode.points, points, _bubblePaint);
-  }
-
   void _halo(Canvas c, Rect rect) {
     c.drawRRect(
       RRect.fromRectAndRadius(rect.inflate(3), const Radius.circular(18)),
@@ -436,21 +433,19 @@ class _Counter extends PositionComponent with TapCallbacks {
     if (sprites == null) {
       art.item(c, pot.phase.index, rect);
     } else {
-      sprites
-        ..drawBody(c, pot.phase, rect, _spritePaint)
-        ..drawLid(
-          c,
-          pot.phase,
-          rect,
-          _spritePaint,
-          rattle: kitchen.reducedMotion
-              ? 0
-              : kitchen.boil.rattle(index, run.now),
-          tilt: kitchen.reducedMotion ? 0 : kitchen.boil.tilt(index, run.now),
-        );
-      if (!kitchen.reducedMotion) {
-        _bubbles(c, rect, kitchen.boil.bubbles(index), run.now);
+      sprites.drawBody(c, pot.phase, rect, _spritePaint);
+      final boilFrame = kitchen.boil.boilFrame(index, run.now);
+      if (boilFrame >= 0 && !kitchen.reducedMotion) {
+        sprites.drawBoil(c, boilFrame, rect, _boilPaint);
       }
+      sprites.drawLid(
+        c,
+        pot.phase,
+        rect,
+        _spritePaint,
+        rattle: kitchen.reducedMotion ? 0 : kitchen.boil.rattle(index, run.now),
+        tilt: kitchen.reducedMotion ? 0 : kitchen.boil.tilt(index, run.now),
+      );
     }
     c.restore();
     if (pot.phase != PotPhase.cooking && !ready) {

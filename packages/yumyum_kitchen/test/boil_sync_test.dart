@@ -127,7 +127,9 @@ void main() {
       peak = max(peak, r);
     }
     expect(peak, closeTo(BoilSync.rattleAmplitude, .002));
-    expect(h.sync.bubbles(0), greaterThan(3));
+    expect(h.sync.boilFrame(0, 0), 0);
+    expect(h.sync.boilFrame(0, 250), 2);
+    expect(h.sync.boilFrame(0, 450), 0);
     expect(h.sync.tilt(0, 45), closeTo(h.sync.rattle(0, 45) * 2.2, 1e-9));
   });
 
@@ -143,7 +145,7 @@ void main() {
     ].reduce(max);
     expect(wobble, greaterThan(BoilSync.rattleAmplitude * .3));
     expect(h.sync.rattle(0, readyAt + BoilSync.settleMs), 0);
-    expect(h.sync.bubbles(0), 0);
+    expect(h.sync.boilFrame(0, readyAt), -1);
   });
 
   test("reset clears every pot", () {

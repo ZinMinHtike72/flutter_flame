@@ -129,10 +129,13 @@ class BoilSync {
   /// Lid tilt in radians that goes with [rattle].
   double tilt(int pot, int now) => rattle(pot, now) * 2.2;
 
-  /// Bubbles visible in the pot mouth for the current stage.
-  int bubbles(int pot) => switch (_stages[pot]) {
-    BoilStage.simmer => 3,
-    BoilStage.rolling => 7,
-    BoilStage.off || BoilStage.ready || BoilStage.burnt => 0,
-  };
+  /// Bubbling-surface frames and how long each one shows.
+  static const boilFrames = 4;
+  static const boilFrameMs = 100;
+
+  /// Frame of the bubbling surface for [pot] at [now], or -1 when the pot
+  /// is not at a rolling boil.
+  int boilFrame(int pot, int now) => _stages[pot] == BoilStage.rolling
+      ? (now ~/ boilFrameMs) % boilFrames
+      : -1;
 }

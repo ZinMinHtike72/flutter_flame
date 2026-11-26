@@ -38,6 +38,8 @@ class SteamField {
     _spawnDebt = Float32List(emitters);
     transforms = Float32List(capacity * 4);
     rects = Float32List(capacity * 4);
+    _frameW = Float32List(capacity)..fillRange(0, capacity, puffSize);
+    _frameH = Float32List(capacity)..fillRange(0, capacity, puffSize);
     colors = Int32List(capacity);
     for (var i = 0; i < capacity; i++) {
       rects
@@ -69,6 +71,25 @@ class SteamField {
   /// Atlas buffers handed to [Canvas.drawRawAtlas]; reused every frame.
   late final Float32List transforms;
   late final Float32List rects;
+  late final Float32List _frameW;
+  late final Float32List _frameH;
+
+  /// Painted frames (left, top, right, bottom per frame) in the atlas image
+  /// passed to [render]; empty until [useTextures], when the baked soft puff
+  /// is used instead.
+  Float32List _steamFrames = Float32List(0);
+  Float32List _smokeFrames = Float32List(0);
+  bool get textured => _steamFrames.isNotEmpty;
+
+  /// Painted steam wisps and smoke puffs, from small to large.
+  void useTextures(List<Rect> steam, List<Rect> smoke) {
+    Float32List pack(List<Rect> frames) => Float32List.fromList([
+      for (final r in frames) ...[r.left, r.top, r.right, r.bottom],
+    ]);
+    _steamFrames = pack(steam);
+    _smokeFrames = pack(smoke);
+  }
+
   late final Int32List colors;
 
   int get alive => _alive;
@@ -143,12 +164,39 @@ class SteamField {
     _owner[i] = pot;
     _smoke[i] = phase == PotPhase.burnt ? 1 : 0;
     _x[i] = mouth.left + mouth.width * (.3 + _random() * .4);
-    _y[i] = mouth.top + mouth.height * .22;
+    // Pot rim centre (painted pots: 0.285 of the cell height).
+    _y[i] = mouth.top + mouth.height * .27;
     _vx[i] = (_random() - .5) * 14 * scale;
     _vy[i] = -(ready ? 60 : 42) * (.8 + _random() * .4) * scale;
     _age[i] = 0;
     _life[i] = ready ? 1.1 + _random() * .5 : .8 + _random() * .5;
     _size[i] = (ready ? 46 : 34) * (.85 + _random() * .3) * scale;
+    final o = i * 4;
+    if (!textured) {
+      rects
+        ..[o] = 0
+        ..[o + 1] = 0
+        ..[o + 2] = puffSize
+        ..[o + 3] = puffSize;
+      _frameW[i] = puffSize;
+      _frameH[i] = puffSize;
+      return;
+    }
+    // Painted wisps are tall: draw them taller than the soft puff. Ready
+    // pots use the bigger half of the steam set; burnt pots use smoke.
+    _size[i] *= 1.9;
+    final frames = _smoke[i] == 1 ? _smokeFrames : _steamFrames;
+    final count = frames.length ~/ 4;
+    final first = _smoke[i] == 0 && ready ? count ~/ 2 : 0;
+    final span = _smoke[i] == 0 ? count ~/ 2 : count;
+    final f = (first + (_random() * span).floor().clamp(0, span - 1)) * 4;
+    rects
+      ..[o] = frames[f]
+      ..[o + 1] = frames[f + 1]
+      ..[o + 2] = frames[f + 2]
+      ..[o + 3] = frames[f + 3];
+    _frameW[i] = frames[f + 2] - frames[f];
+    _frameH[i] = frames[f + 3] - frames[f + 1];
   }
 
   void _retire(int i) {
@@ -165,6 +213,15 @@ class SteamField {
     _size[i] = _size[last];
     _owner[i] = _owner[last];
     _smoke[i] = _smoke[last];
+    _frameW[i] = _frameW[last];
+    _frameH[i] = _frameH[last];
+    final o = i * 4;
+    final l = last * 4;
+    rects
+      ..[o] = rects[l]
+      ..[o + 1] = rects[l + 1]
+      ..[o + 2] = rects[l + 2]
+      ..[o + 3] = rects[l + 3];
   }
 
   /// Removes every puff (new shift, reduced motion turned on).
@@ -178,24 +235,29 @@ class SteamField {
   int _drawn = 0;
 
   /// Draws every live puff in one atlas call over the full, reused buffers;
-  /// dead slots are zero-scale and transparent.
-  void render(Canvas canvas, Image puff, Paint paint) {
+  /// dead slots are zero-scale and transparent. [image] is the painted
+  /// atlas after [useTextures], else the baked puff.
+  void render(Canvas canvas, Image image, Paint paint) {
     if (_alive == 0 && _drawn == 0) {
       return;
     }
     for (var i = 0; i < _alive; i++) {
       final t = _age[i] / _life[i];
-      final size = _size[i] * (1 + t * 1.6);
-      final s = size / puffSize;
+      final size = _size[i] * (1 + t * (textured ? .8 : 1.6));
+      final s = size / _frameH[i];
       final o = i * 4;
       transforms
         ..[o] = s
         ..[o + 1] = 0
-        ..[o + 2] = _x[i] - size / 2
-        ..[o + 3] = _y[i] - size / 2;
+        ..[o + 2] = _x[i] - s * _frameW[i] / 2
+        // Painted wisps rise from their base; the soft puff is centred.
+        ..[o + 3] = _y[i] - size * (textured ? .9 : .5);
       final fade = t < .15 ? t / .15 : 1 - (t - .15) / .85;
       final alpha = (fade * (_smoke[i] == 1 ? 200 : 185)).round().clamp(0, 255);
-      colors[i] = _smoke[i] == 1
+      // Painted frames carry their own colour; the soft puff is tinted.
+      colors[i] = textured
+          ? (alpha << 24) | 0xFFFFFF
+          : _smoke[i] == 1
           ? (alpha << 24) | 0x4A423C
           : (alpha << 24) | 0xFFF6E6;
     }
@@ -208,7 +270,7 @@ class SteamField {
       return;
     }
     canvas.drawRawAtlas(
-      puff,
+      image,
       transforms,
       rects,
       colors,

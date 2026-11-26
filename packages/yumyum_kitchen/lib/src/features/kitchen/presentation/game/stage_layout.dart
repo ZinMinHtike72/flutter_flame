@@ -153,7 +153,7 @@ class StageLayout {
   final List<Rect> bowlSprites;
   final List<Rect> garnishSprites;
 
-  static const potAspect = 1.1;
+  static const potAspect = 1.0;
   static const bowlAspect = 1.25;
   static const garnishAspect = 1.4;
 

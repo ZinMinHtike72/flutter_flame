@@ -89,6 +89,7 @@ GitHub issue numbers are in brackets.
 - [x] status: done - Pot and lid sprite set [#28] — realistic painted slices (`pot_sprites.dart`): full pot per state, ready lid and body split at row 130/362, cooking dome above 116/362; flat SVG set tried and dropped for realism
 - [x] status: done - Steam particle system [#29] — `steam_field.dart` (typed-array pool, one `drawRawAtlas`, tier budgets), static wisp under reduced motion; `steam_field_test.dart`, `steam_motion` / `steam_reduced_motion` goldens
 - [x] status: done - Boil animation and audio sync [#30] — `boil_sync.dart` stages (simmer/rolling/ready/burnt) updated inside each 30 Hz rules step; boil loop and ready chime fire on that step; lid rattle and bubbles; `boil_sync_test.dart`, `test/app/boil_audio_test.dart`, `boil_rolling` golden
+- [x] status: done - Painted pot, lid and steam assets [#33] — generated art packed by `tool/pack_art.dart` into `pots.webp` (5.3 MB decoded) and `smoke.webp` (1.1 MB); lid seated at the measured rim (pot rim centre 292/1024, lid seat 240/1024); glass lid tinted; textured steam/smoke in `SteamField`; bubbling surface at the rolling boil
 - [ ] status: pending - Integrate animation, audio, and reduced motion [#11]
 - [ ] status: pending - Motion design pass: transitions, micro-interactions, haptics, 100 ms response [#31]
 - [ ] status: pending - Build the market entrance and ticket selection [#12]

@@ -5,18 +5,23 @@ import "package:flutter/widgets.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:yumyum_kitchen/src/features/kitchen/domain/kitchen_run.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/pot_sprites.dart";
+import "package:yumyum_kitchen/src/features/kitchen/presentation/game/sprite_atlas.dart";
 
-Future<ui.Image> _sheet() async {
-  final bytes = File("assets/images/equipment.webp").readAsBytesSync();
+Future<SpriteAtlas> loadAtlas(String name) async {
+  final bytes = File("assets/images/$name.webp").readAsBytesSync();
   final codec = await ui.instantiateImageCodec(bytes);
-  return (await codec.getNextFrame()).image;
+  final image = (await codec.getNextFrame()).image;
+  return SpriteAtlas.fromJson(
+    image,
+    File("assets/images/$name.json").readAsStringSync(),
+  );
 }
 
-/// The four states, then the ready lid lifted and tilted as the boil
-/// animation will move it.
+/// Pots in all four states with their lids, then a rolling boil with the
+/// lid rattling and the bubbling surface.
 class _Sheet extends CustomPainter {
-  _Sheet(this.sprites);
-  final PotSprites sprites;
+  _Sheet(this.pots);
+  final PotSprites pots;
   final _paint = Paint()..filterQuality = FilterQuality.medium;
 
   @override
@@ -25,17 +30,27 @@ class _Sheet extends CustomPainter {
       Offset.zero & size,
       Paint()..color = const Color(0xFF8A3A1C),
     );
-    final w = size.width / 6;
-    final poses = <(PotPhase, double, double)>[
-      for (final phase in PotPhase.values) (phase, 0, 0),
-      (PotPhase.ready, .06, -.12),
-      (PotPhase.cooking, .03, .05),
-    ];
-    for (final (i, (phase, rattle, tilt)) in poses.indexed) {
-      final dst = Rect.fromLTWH(i * w + 6, 60, w - 12, (w - 12) / 1.1);
-      sprites
-        ..drawBody(canvas, phase, dst, _paint)
-        ..drawLid(canvas, phase, dst, _paint, rattle: rattle, tilt: tilt);
+    final w = size.width / 5;
+    for (final (i, phase) in [
+      PotPhase.empty,
+      PotPhase.cooking,
+      PotPhase.ready,
+      PotPhase.burnt,
+      PotPhase.cooking,
+    ].indexed) {
+      final cell = Rect.fromLTWH(i * w + 8, 70, w - 16, w - 16);
+      pots.drawBody(canvas, phase, cell, _paint);
+      if (i == 4) {
+        pots.drawBoil(canvas, 1, cell, _paint);
+      }
+      pots.drawLid(
+        canvas,
+        phase,
+        cell,
+        _paint,
+        rattle: i == 4 ? .02 : 0,
+        tilt: i == 4 ? .04 : 0,
+      );
     }
   }
 
@@ -44,39 +59,31 @@ class _Sheet extends CustomPainter {
 }
 
 void main() {
-  testWidgets("slices the painted pots into bodies and lids", (tester) async {
-    final image = (await tester.runAsync(_sheet))!;
-    final sprites = PotSprites(image);
-    final cellW = image.width / 4;
-    final cellH = image.height / 3;
+  testWidgets("painted pots, lids and boil surface line up", (tester) async {
+    final atlas = (await tester.runAsync(() => loadAtlas("pots")))!;
+    final pots = PotSprites(atlas);
 
     for (final phase in PotPhase.values) {
-      expect(sprites.fullSource(phase).left, phase.index * cellW);
-      expect(sprites.fullSource(phase).height, cellH);
+      expect(atlas.has("pot_${phase.name}"), isTrue);
     }
-    final lid = sprites.lidSource(PotPhase.ready)!;
-    final body = sprites.readyBodySource;
-    expect(lid.bottom, body.top, reason: "lid and body meet without a gap");
-    expect(lid.top, 0);
-    expect(body.bottom, cellH);
-    expect(sprites.lidSource(PotPhase.cooking)!.bottom, lessThan(lid.bottom));
-    expect(sprites.lidSource(PotPhase.empty), isNull);
-    expect(sprites.lidSource(PotPhase.burnt), isNull);
+    for (final name in ["lid_glass", "lid_enamel", "boil_0", "boil_3"]) {
+      expect(atlas.has(name), isTrue);
+    }
+    expect(() => atlas.id("missing"), throwsArgumentError);
     expect(PotSprites.hasLid(PotPhase.cooking), isTrue);
     expect(PotSprites.hasLid(PotPhase.ready), isTrue);
     expect(PotSprites.hasLid(PotPhase.empty), isFalse);
     expect(PotSprites.hasLid(PotPhase.burnt), isFalse);
+    expect(PotSprites.poseFor(PotPhase.cooking), (0, 0, 0));
+    expect(PotSprites.poseFor(PotPhase.ready).$1, greaterThan(0));
 
     tester.view
-      ..physicalSize = const Size(1500, 320)
+      ..physicalSize = const Size(1500, 400)
       ..devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
       RepaintBoundary(
-        child: CustomPaint(
-          painter: _Sheet(sprites),
-          size: const Size(1500, 320),
-        ),
+        child: CustomPaint(painter: _Sheet(pots), size: const Size(1500, 400)),
       ),
     );
     if (Platform.isMacOS) {
@@ -87,17 +94,19 @@ void main() {
     }
   });
 
-  testWidgets("a still cooking dome draws nothing extra", (tester) async {
-    final image = (await tester.runAsync(_sheet))!;
-    final sprites = PotSprites(image);
+  testWidgets("a lidless pot draws no lid and keeps the canvas balanced", (
+    tester,
+  ) async {
+    final atlas = (await tester.runAsync(() => loadAtlas("pots")))!;
+    final pots = PotSprites(atlas);
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
-    const dst = Rect.fromLTWH(0, 0, 110, 100);
-    // Must not throw and must leave the canvas balanced.
-    sprites
-      ..drawLid(canvas, PotPhase.cooking, dst, Paint())
-      ..drawLid(canvas, PotPhase.empty, dst, Paint())
-      ..drawLid(canvas, PotPhase.burnt, dst, Paint());
+    const cell = Rect.fromLTWH(0, 0, 100, 100);
+    pots
+      ..drawLid(canvas, PotPhase.empty, cell, Paint())
+      ..drawLid(canvas, PotPhase.burnt, cell, Paint())
+      ..drawLid(canvas, PotPhase.ready, cell, Paint(), rattle: .01)
+      ..drawBoil(canvas, 7, cell, Paint());
     expect(canvas.getSaveCount(), 1);
     recorder.endRecording().dispose();
   });
