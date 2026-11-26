@@ -1,0 +1,7 @@
+{
+  "@@locale": "en",
+  "appTitle": "Yum Yum Kitchen",
+  "homeTitle": "Game starter",
+  "homeDescription": "Your Flame canvas is ready. Add your first game feature under lib/features.",
+  "notFoundMessage": "This page is unavailable."
+}

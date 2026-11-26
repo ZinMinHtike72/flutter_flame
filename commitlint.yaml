@@ -1,0 +1,35 @@
+# Conventional Commits: <type>(<optional scope>): <subject>
+# e.g. feat(game): add game summary
+include: package:commitlint_cli/commitlint.yaml
+
+rules:
+  type-enum:
+    - 2
+    - always
+    - [build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test]
+  type-case:
+    - 2
+    - always
+    - lower-case
+  # Any lowercase scope is allowed (feature name, e.g. game, target).
+  scope-enum:
+    - 0
+    - always
+    - []
+  scope-case:
+    - 2
+    - always
+    - lower-case
+  subject-empty:
+    - 2
+    - never
+  subject-full-stop:
+    - 2
+    - never
+    - "."
+  header-max-length:
+    - 2
+    - always
+    - 100
+
+defaultIgnores: true

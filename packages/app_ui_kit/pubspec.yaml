@@ -1,0 +1,19 @@
+name: app_ui_kit
+description: "Shared theme and widgets for Game Test."
+publish_to: "none"
+resolution: workspace
+
+environment:
+    sdk: ">=3.9.0 <4.0.0"
+
+dependencies:
+    cached_network_image: ^3.4.1
+    flutter:
+        sdk: flutter
+    flutter_cache_manager: ^3.4.1
+
+dev_dependencies:
+    file: ^7.0.1
+    flutter_lints: ^6.0.0
+    flutter_test:
+        sdk: flutter

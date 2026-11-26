@@ -1,0 +1,3 @@
+// Production flavor settings, included by *-production.xcconfig.
+APP_DISPLAY_NAME = Yum Yum Kitchen
+BUNDLE_ID_SUFFIX =
