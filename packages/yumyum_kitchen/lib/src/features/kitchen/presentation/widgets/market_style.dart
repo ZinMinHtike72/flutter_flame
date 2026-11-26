@@ -186,3 +186,23 @@ class MarketPanel extends StatelessWidget {
     child: Padding(padding: const EdgeInsets.all(15), child: child),
   );
 }
+
+/// While [blocking], an opaque layer under [child] absorbs every pointer that
+/// misses the overlay's own controls, so scrim taps never reach the game.
+class ScrimGuard extends StatelessWidget {
+  const ScrimGuard({required this.blocking, required this.child, super.key});
+  final bool blocking;
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => Stack(
+    fit: StackFit.expand,
+    children: [
+      if (blocking)
+        const Listener(
+          behavior: HitTestBehavior.opaque,
+          child: SizedBox.expand(),
+        ),
+      child,
+    ],
+  );
+}

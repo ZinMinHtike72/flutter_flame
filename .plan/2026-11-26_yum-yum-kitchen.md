@@ -75,7 +75,7 @@ GitHub issue numbers are in brackets.
 - [ ] status: pending - Prove dual-SDK package compatibility [#2]
 - [x] status: done - Build the full-screen cover viewport, safe stage and three zones [#3] — `StageLayout`, cover-fit art, immersive mode, Android `shortEdges`, HUD on safe stage, Myanmar goldens fixed
 - [x] status: done - Enforce 48 px non-overlapping hit areas with a debug overlay and test [#23] — `test/app/hit_area_test.dart` (5 sizes), `SHOW_HIT_BOXES` dart-define, `hit_boxes_notched_phone` golden
-- [ ] status: pending - Block game input behind overlay scrims [#24]
+- [x] status: done - Block game input behind overlay scrims [#24] — `ScrimGuard`, `test/app/overlay_scrim_test.dart`
 - [ ] status: pending - Fixed 30 Hz rules step and 30 fps render cap [#25]
 - [ ] status: pending - Preload, pool and remove per-frame allocations [#26]
 - [ ] status: pending - Quality tiers chosen by a startup benchmark [#27]

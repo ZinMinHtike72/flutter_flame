@@ -12,6 +12,7 @@ Last updated: 2026-11-26
 - **Safe stage**: screen inset by `MediaQuery.viewPadding` + 24 px on every side, computed by `StageLayout` (`presentation/game/stage_layout.dart`).
 - **Zones**: art (whole screen, not tappable), action (lower 45 % of the screen inside the safe stage: pack, pots, bowls, discard targets, garnish bins), HUD (48 px band at the top of the safe stage: goal, tutorial hint, combo, coins, clock, pause). Order tickets sit between the HUD and the action zone.
 - **Hit areas**: every target is ≥ 48×48, inside the safe stage and apart from every other (HUD pause included); `test/app/hit_area_test.dart` enforces it on five device sizes.
+- **Overlays**: every page except the live shift sits on an opaque scrim plus `ScrimGuard`; no counter point reaches the game while pause, receipt or shop is open (`test/app/overlay_scrim_test.dart`).
 - **Debug**: `YumYumKitchenScreen(showHitBoxes: true)` paints the safe stage, zones and hit boxes; the standalone app enables it with `--flavor development --dart-define=SHOW_HIT_BOXES=true`.
 - Rules, campaign and progress are pure Dart in `domain/`; progress is saved locally and settled once per run.
 
