@@ -159,4 +159,27 @@ void main() {
       },
     );
   }
+  test("a missed customer resets the streak and the lanterns", () {
+    final run = shift(12);
+    run.chain = 3;
+    final first = run.customers.nonNulls.first;
+    run.advance(first.expires - run.now);
+    expect(run.missed, 1);
+    expect(run.cue, KitchenCue.missed);
+    expect(run.chain, 0);
+  });
+
+  test("campaign: three products, up to four customers, 1500 in 90 s", () {
+    expect(campaign, hasLength(12));
+    expect({for (final s in campaign) s.product}, NoodleProduct.values.toSet());
+    for (final s in campaign) {
+      expect(s.product, NoodleProduct.values[(s.number - 1) ~/ 4]);
+      expect(s.slots, inInclusiveRange(2, 4));
+    }
+    expect(campaign.map((s) => s.slots).reduce(max), 4);
+    final finale = campaign.last;
+    expect(finale.goal, Goal.coins);
+    expect(finale.target, 1500);
+    expect(finale.seconds, 90);
+  });
 }

@@ -79,29 +79,29 @@ GitHub issue numbers are in brackets.
 - [x] status: done - Fixed 30 Hz rules step and 30 fps render cap [#25] — `frame_timing.dart` (`FrameThrottle`, `FixedStepClock`), engine paused and stepped from vsync; `frame_timing_test.dart`, `test/app/frame_cap_test.dart`
 - [x] status: done - Preload, pool and remove per-frame allocations [#26] — baseline ≈ 118 objects/frame (44 Rect, 26 closures, 11 set iterators, 9 Offset, 7 RRect + 7 Float32List, …) → 0 from game code (allocation tracing, 300 steady shift-12 frames); geometry cached per layout, sprites drawn through transforms, index loops in the rules step, Flame's unused camera subtree skipped; clock gated on `preloaded`; `test/app/performance_test.dart`
 - [x] status: done - Quality tiers chosen by a startup benchmark [#27] — `quality_benchmark.dart` (high ≤ 250 µs, medium ≤ 700 µs per frame), saved `qualityTier`, Graphics toggle in pause; `quality_test.dart`
-- [ ] status: pending - Implement pot and bowl transitions [#4]
-- [ ] status: pending - Implement order matching and patience [#5]
-- [ ] status: pending - Wire one playable shift from start to result [#6]
-- [ ] status: pending - Create the reference keyframe [#7]
-- [ ] status: pending - Produce environment layers [#8]
-- [ ] status: pending - Produce food and appliance sprites [#9]
-- [ ] status: pending - Produce customer poses [#10]
+- [x] status: done - Implement pot and bowl transitions [#4] — audited 2026-11-26: rules: cooking_test
+- [x] status: done - Implement order matching and patience [#5] — audited 2026-11-26: rules: cooking_test
+- [x] status: done - Wire one playable shift from start to result [#6] — audited 2026-11-26: screens_golden_test flow
+- [x] status: done - Create the reference keyframe [#7] — audited 2026-11-26: art/reference.png
+- [x] status: done - Produce environment layers [#8] — audited 2026-11-26: market/awning/counter/entrance layers
+- [x] status: done - Produce food and appliance sprites [#9] — audited 2026-11-26: small_phone_food_and_pots golden
+- [x] status: done - Produce customer poses [#10] — audited 2026-11-26: #34 customers
 - [x] status: done - Pot and lid sprite set [#28] — realistic painted slices (`pot_sprites.dart`): full pot per state, ready lid and body split at row 130/362, cooking dome above 116/362; flat SVG set tried and dropped for realism
 - [x] status: done - Steam particle system [#29] — `steam_field.dart` (typed-array pool, one `drawRawAtlas`, tier budgets), static wisp under reduced motion; `steam_field_test.dart`, `steam_motion` / `steam_reduced_motion` goldens
 - [x] status: done - Boil animation and audio sync [#30] — `boil_sync.dart` stages (simmer/rolling/ready/burnt) updated inside each 30 Hz rules step; boil loop and ready chime fire on that step; lid rattle and bubbles; `boil_sync_test.dart`, `test/app/boil_audio_test.dart`, `boil_rolling` golden
 - [x] status: done - Painted pot, lid and steam assets [#33] — generated art packed by `tool/pack_art.dart` into `pots.webp` (5.3 MB decoded) and `smoke.webp` (1.1 MB); lid seated at the measured rim (pot rim centre 292/1024, lid seat 240/1024); glass lid tinted; textured steam/smoke in `SteamField`; bubbling surface at the rolling boil
 - [x] status: done - Full-body animated customers [#34] — six generated customers packed at 0.55× (33.7 MB decoded, ~3.2 MB on disk); pure `CustomerCast` (walk in stride-locked from the nearer side, idle ↔ impatient, happy/annoyed reaction, walk away, 100 ms cross-fades, entrance waits for the slot to clear); `CustomerSprites` draws by the feet; tickets float beside heads (`StageLayout.customerHeight`, `ticketOrigin`); reduced motion fades in place
-- [ ] status: pending - Integrate animation, audio, and reduced motion [#11]
+- [x] status: done - Integrate animation, audio, and reduced motion [#11] — audited 2026-11-26: #29–#31, #34
 - [x] status: done - Motion design pass: transitions, micro-interactions, haptics, 100 ms response [#31] — `PressFeedback` (0.94 → 1 over 120 ms, drawn on the next 30 fps frame; ring under reduced motion), `hapticFor` (selection / light / medium / heavy), `AppFadeSwitcher` (220 ms pages, 160 ms pause), coins count up, lantern pop, burnt-pot shake, awning lift; `test/app/motion_test.dart`, `motion_test.dart`, `app_fade_switcher_test.dart`
-- [ ] status: pending - Build the market entrance and ticket selection [#12]
-- [ ] status: pending - Teach the first order [#13]
-- [ ] status: pending - Implement scoring and lantern combos [#14]
-- [ ] status: pending - Configure and balance 12 shifts [#15]
-- [ ] status: pending - Save earnings and unlocks [#16]
-- [ ] status: pending - Build the upgrade shop [#17]
-- [ ] status: pending - Finish HUD, pause, and results overlays [#18]
-- [ ] status: pending - Connect product cards in both launch modes [#19]
-- [ ] status: pending - Brand the standalone app [#20]
+- [x] status: done - Build the market entrance and ticket selection [#12] — audited 2026-11-26: journey_test
+- [x] status: done - Teach the first order [#13] — audited 2026-11-26: cooking_test guided sale
+- [x] status: done - Implement scoring and lantern combos [#14] — audited 2026-11-26: cooking_test
+- [x] status: done - Configure and balance 12 shifts [#15] — audited 2026-11-26: cooking_test campaign
+- [x] status: done - Save earnings and unlocks [#16] — audited 2026-11-26: progress_test
+- [x] status: done - Build the upgrade shop [#17] — audited 2026-11-26: progress_test + shop golden
+- [x] status: done - Finish HUD, pause, and results overlays [#18] — audited 2026-11-26: journey_test lifecycle + goldens
+- [x] status: done - Connect product cards in both launch modes [#19] — audited 2026-11-26: journey_test + official pages HTTP 200
+- [x] status: done - Brand the standalone app [#20] — audited 2026-11-26: icons, names, title, iOS CFBundleLocalizations
 - [ ] status: pending - Verify embedded launch, exit, and orientation restoration [#21]
 - [ ] status: pending - Complete bilingual visual and device QA at 30 fps [#22]
 - [ ] status: pending - Hit-area audit and safe-area QA on notched, foldable and tablet devices [#32]
