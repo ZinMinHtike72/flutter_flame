@@ -160,10 +160,66 @@ class StageLayout {
   /// Screen y of the counter's top edge.
   double get counterTopY => origin.dy + counterTop * scale;
 
-  /// Horizontal centre of customer [slot] of [slots], inside the safe stage.
+  /// Share of a standing customer's height hidden below the counter top.
+  static const waistShare = .46;
+
+  /// Order-ticket size in design pixels, and its gap from the head as a
+  /// share of the customer height.
+  static const ticketDesignWidth = 148.0;
+  static const ticketDesignHeight = 78.0;
+  static const ticketGap = .09;
+
+  /// Scale of order tickets: design size, shrunk when the ticket band is
+  /// short or the screen is narrow (eight ticket widths fit across).
+  double get ticketScale => math
+      .min(
+        math.min(scale, tickets.height / 150),
+        safe.width / (8 * ticketDesignWidth),
+      )
+      .clamp(.4, 1.2)
+      .toDouble();
+  double get ticketWidth => ticketDesignWidth * ticketScale;
+  double get ticketHeight => ticketDesignHeight * ticketScale;
+
+  /// Most customers at the counter (shifts 9–12).
+  static const maxSlots = 4;
+
+  /// Head half-width share of H, minus the overlap a ticket may have.
+  static const _headClearance = .035;
+
+  /// Full standing height of a customer: head just below the HUD band and
+  /// waist at the counter top, capped so tablets don't get giants and so a
+  /// four-customer row still fits every ticket beside its customer's head.
+  double get customerHeight {
+    final fromCounter = (counterTopY - tickets.top) / (1 - waistShare);
+    final rowFits =
+        (safe.width - (maxSlots + 1) * ticketWidth) /
+        ((maxSlots + 1) * ticketGap + maxSlots * _headClearance);
+    return math
+        .min(fromCounter, rowFits)
+        .clamp(60 * scale, 450 * scale)
+        .toDouble();
+  }
+
+  /// Space kept free right of the last customer for their ticket.
+  double get _ticketReserve => ticketWidth + customerHeight * ticketGap;
+
+  /// Horizontal centre of customer [slot] of [slots]. Customers are spread
+  /// across the safe stage with room on the right for each order ticket,
+  /// which floats beside the head.
   double guestX(int slot, int slots) {
-    final spacing = math.min(261 * scale, safe.width / slots);
-    return safe.center.dx + (slot - (slots - 1) / 2) * spacing;
+    final width = safe.width - _ticketReserve;
+    final spacing = math.min(261 * scale, width / slots);
+    return safe.left + width / 2 + (slot - (slots - 1) / 2) * spacing;
+  }
+
+  /// Top-left of [slot]'s order ticket: beside the head, on the right.
+  Offset ticketOrigin(int slot, int slots) {
+    final headTop = counterTopY - customerHeight * (1 - waistShare);
+    return Offset(
+      guestX(slot, slots) + customerHeight * ticketGap,
+      math.max(tickets.top, headTop + customerHeight * .03),
+    );
   }
 
   /// Every hit box, reserved even when the element is idle (discards).

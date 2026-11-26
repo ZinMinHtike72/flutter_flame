@@ -10,6 +10,8 @@ import "package:flutter/services.dart";
 import "package:yumyum_kitchen/src/features/kitchen/domain/kitchen_run.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/bloc/kitchen_bloc.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/boil_sync.dart";
+import "package:yumyum_kitchen/src/features/kitchen/presentation/game/customer_cast.dart";
+import "package:yumyum_kitchen/src/features/kitchen/presentation/game/customer_sprites.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/frame_timing.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/kitchen_audio.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/market_art.dart";
@@ -64,6 +66,12 @@ class YumYumKitchenGame extends FlameGame {
   Image? puff;
   KitchenRun? _steamRun;
 
+  /// Full-body customers, matched to the rules inside each rules step.
+  final cast = CustomerCast();
+
+  /// The six customers' sprites (set at load).
+  CustomerSprites? customerSprites;
+
   /// Bubbles, lid rattle and boil audio, updated inside each rules step.
   final boil = BoilSync();
   KitchenRun? _boilRun;
@@ -86,6 +94,7 @@ class YumYumKitchenGame extends FlameGame {
     if (run == null) {
       return;
     }
+    cast.sync(run, reducedMotion: reducedMotion);
     final sound = bloc.state.profile.sound;
     final flipped = boil.step(run, _onBoilChange);
     if (flipped || sound != _loopSound) {
@@ -148,6 +157,10 @@ class YumYumKitchenGame extends FlameGame {
     await super.onLoad();
     await Future.wait([art.load(), audio.preload()]);
     potSprites = PotSprites(await loadAtlas("pots"));
+    customerSprites = CustomerSprites([
+      for (final name in CustomerSprites.names)
+        await loadAtlas("customers/$name"),
+    ]);
     final smoke = smokeAtlas = await loadAtlas("smoke");
     steam.useTextures(
       [for (var i = 0; i < 8; i++) smoke.frame(smoke.id("steam_$i")).source],
@@ -292,12 +305,7 @@ class _Counter extends PositionComponent with TapCallbacks {
       _effectAt = -2000;
     }
     _feedbackFor(run);
-    for (final customer in run.customers) {
-      if (customer != null) {
-        _customer(c, layout, run, customer);
-      }
-    }
-    _departure(c, layout, run);
+    _customers(c, layout, run);
     _artLayer(c, layout, _drawCounterArt);
     for (final customer in run.customers) {
       if (customer != null) {
@@ -495,50 +503,109 @@ class _Counter extends PositionComponent with TapCallbacks {
     }
   }
 
-  /// Ticket scale: design size, shrunk only when the ticket band is short.
-  double _ticketScale(StageLayout layout) =>
-      math.min(layout.scale, layout.tickets.height / 150).clamp(.4, 1.2);
+  final _pose = CustomerPose();
+  final _customerPaint = Paint()..filterQuality = FilterQuality.medium;
+  final _shadowPaint = Paint()
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, .08);
 
-  /// Customers stand behind the counter with their head just below their
-  /// ticket, so the ticket never covers a face.
-  Rect _guestRect(StageLayout layout, double x) {
-    final width = 248 * layout.scale;
-    final height = 245 * layout.scale;
-    final ticketBottom = layout.tickets.top + 92 * _ticketScale(layout);
-    final bottom = math.max(
-      layout.counterTopY + 8 * layout.scale,
-      ticketBottom - height * .06 + height,
-    );
-    return Rect.fromLTWH(x - width / 2, bottom - height, width, height);
-  }
+  /// White and black at every alpha, built once so drawing needs no Colors.
+  static final _whites = [
+    for (var a = 0; a < 256; a++) Color.fromARGB(a, 255, 255, 255),
+  ];
+  static final _blacks = [
+    for (var a = 0; a < 256; a++) Color.fromARGB(a, 0, 0, 0),
+  ];
+  static Color _white(double opacity) =>
+      _whites[(opacity.clamp(0.0, 1.0) * 255).round()];
+  static const _unitOval = Rect.fromLTWH(-.5, -.5, 1, 1);
 
-  void _customer(Canvas c, StageLayout layout, KitchenRun run, Customer guest) {
-    final x = layout.guestX(guest.slot, run.shift.slots);
-    final ratio = ((guest.expires - run.now) / run.shift.patienceMs).clamp(
-      0.0,
-      1.0,
-    );
-    final entrance = kitchen.reducedMotion
-        ? 0.0
-        : (1 - ((run.now - guest.arrived) / 270).clamp(0.0, 1.0)) *
-              25 *
-              layout.scale;
-    art.guest(
-      c,
-      guest.id,
-      ratio < .3 && run.guide == Guide.done ? 1 : 0,
-      _guestRect(layout, x + entrance),
-    );
+  /// Draws every customer, far ones first, behind the counter art.
+  void _customers(Canvas c, StageLayout layout, KitchenRun run) {
+    final sprites = kitchen.customerSprites;
+    if (sprites == null) {
+      return;
+    }
+    final height = layout.customerHeight;
+    final standFeetY = layout.counterTopY + height * StageLayout.waistShare;
+    final streetFeetY = layout.counterTopY - 4 * layout.scale;
+    // Two passes: customers on their way in or out (deeper) behind those
+    // standing at the counter.
+    for (final deep in const [true, false]) {
+      for (final actor in kitchen.cast.actors) {
+        if (!actor.active) {
+          continue;
+        }
+        CustomerCast.pose(
+          actor,
+          run.now,
+          _pose,
+          reducedMotion: kitchen.reducedMotion,
+          guided: run.guide != Guide.done,
+        );
+        if ((_pose.depth > 0) != deep) {
+          continue;
+        }
+        final scale = 1 - .2 * _pose.depth;
+        final h = height * scale * _pose.breath;
+        final feetX =
+            layout.guestX(actor.slot, run.shift.slots) + _pose.x * height;
+        final feetY = standFeetY + (streetFeetY - standFeetY) * _pose.depth;
+        if (feetY < layout.counterTopY) {
+          // Feet visible on the street: a soft contact shadow.
+          _shadowPaint.color = _blacks[(64 * _pose.opacity).round()];
+          c
+            ..save()
+            ..translate(feetX, feetY)
+            ..scale(h * .32, h * .05)
+            ..drawOval(_unitOval, _shadowPaint)
+            ..restore();
+        }
+        final from = _pose.fromClip;
+        if (from != null && _pose.fromOpacity > 0) {
+          _customerPaint.color = _white(_pose.fromOpacity);
+          sprites.draw(
+            c,
+            actor.look,
+            from,
+            _pose.fromFrame,
+            feetX,
+            feetY,
+            h,
+            _customerPaint,
+            flip: _pose.flip,
+          );
+        }
+        _customerPaint.color = _white(_pose.opacity);
+        sprites.draw(
+          c,
+          actor.look,
+          _pose.clip,
+          _pose.frame,
+          feetX,
+          feetY,
+          h,
+          _customerPaint,
+          flip: _pose.flip,
+        );
+      }
+    }
   }
 
   void _ticket(Canvas c, StageLayout layout, KitchenRun run, Customer guest) {
-    final x = layout.guestX(guest.slot, run.shift.slots);
-    final k = _ticketScale(layout);
+    // Hide the order until its customer starts to come in, so it never
+    // floats beside the previous customer who is still reacting.
+    for (final actor in kitchen.cast.actors) {
+      if (actor.active && actor.id == guest.id && run.now < actor.enterAt) {
+        return;
+      }
+    }
+    final k = layout.ticketScale;
+    final origin = layout.ticketOrigin(guest.slot, run.shift.slots);
     final ticket = Rect.fromLTWH(
-      x - 74 * k,
-      layout.tickets.top,
-      148 * k,
-      78 * k,
+      origin.dx,
+      origin.dy,
+      layout.ticketWidth,
+      layout.ticketHeight,
     );
     c.drawRRect(
       RRect.fromRectAndRadius(ticket, Radius.circular(20 * k)),
@@ -613,27 +680,6 @@ class _Counter extends PositionComponent with TapCallbacks {
 
   bool _served(KitchenRun run) =>
       run.cue == KitchenCue.served || run.cue == KitchenCue.streak;
-
-  void _departure(Canvas c, StageLayout layout, KitchenRun run) {
-    final age = run.now - _effectAt;
-    if (!_served(run) ||
-        age < 0 ||
-        age > 650 ||
-        run.servedSlot == null ||
-        run.customers[run.servedSlot!] != null) {
-      return;
-    }
-    final x = layout.guestX(run.servedSlot!, run.shift.slots);
-    final dx = kitchen.reducedMotion
-        ? 0.0
-        : math.max(0, age - 300) * .22 * layout.scale;
-    art.guest(
-      c,
-      run.servedCustomerId!,
-      age < 350 ? 2 : 3,
-      _guestRect(layout, x + dx),
-    );
-  }
 
   void _serving(Canvas c, StageLayout layout, KitchenRun run) {
     final age = run.now - _effectAt;

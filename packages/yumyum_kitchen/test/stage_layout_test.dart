@@ -67,6 +67,38 @@ void main() {
         expect(layout.tickets.bottom, lessThanOrEqualTo(layout.action.top));
       });
 
+      test("tickets float beside heads, inside the safe stage", () {
+        final h = layout.customerHeight;
+        final headTop = layout.counterTopY - h * (1 - StageLayout.waistShare);
+        expect(headTop, greaterThanOrEqualTo(layout.hud.bottom - 1e-6));
+        for (final slots in [2, 3, 4]) {
+          for (var slot = 0; slot < slots; slot++) {
+            final o = layout.ticketOrigin(slot, slots);
+            final ticket = Rect.fromLTWH(
+              o.dx,
+              o.dy,
+              layout.ticketWidth,
+              layout.ticketHeight,
+            );
+            expect(
+              encloses(layout.safe, ticket),
+              isTrue,
+              reason: "$slots slots, slot $slot ticket $ticket",
+            );
+            expect(ticket.top, greaterThanOrEqualTo(layout.hud.bottom));
+            if (slot + 1 < slots) {
+              // The next customer's head (about 13 % of H wide) stays clear.
+              final nextHeadLeft = layout.guestX(slot + 1, slots) - h * .065;
+              expect(
+                ticket.right,
+                lessThanOrEqualTo(nextHeadLeft + h * .03),
+                reason: "$slots slots, slot $slot ticket hits next head",
+              );
+            }
+          }
+        }
+      });
+
       test("customers stay inside the safe stage", () {
         for (var slot = 0; slot < 4; slot++) {
           final x = layout.guestX(slot, 4);

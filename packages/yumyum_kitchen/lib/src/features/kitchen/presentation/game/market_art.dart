@@ -11,7 +11,6 @@ class MarketArt {
       "counter.webp",
       "awning.webp",
       "equipment.webp",
-      "people.webp",
       ...NoodleProduct.values.map((p) => "${p.key}.png"),
     ]);
   }
@@ -33,8 +32,6 @@ class MarketArt {
 
   void item(Canvas c, int cell, Rect dst) =>
       draw(c, "equipment.webp", dst, cols: 4, rows: 3, cell: cell);
-  void guest(Canvas c, int id, int pose, Rect dst) =>
-      draw(c, "people.webp", dst, cols: 6, rows: 4, cell: pose * 6 + id % 6);
   void dish(Canvas c, NoodleProduct product, Set<Garnish>? toppings, Rect dst) {
     item(c, toppings == null ? 4 : 5 + product.index, dst);
     if (toppings == null) {

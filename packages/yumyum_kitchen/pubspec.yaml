@@ -33,5 +33,6 @@ flutter:
   generate: true
   assets:
     - assets/images/
+    - assets/images/customers/
     - assets/audio/
 

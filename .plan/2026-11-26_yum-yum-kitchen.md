@@ -90,6 +90,7 @@ GitHub issue numbers are in brackets.
 - [x] status: done - Steam particle system [#29] — `steam_field.dart` (typed-array pool, one `drawRawAtlas`, tier budgets), static wisp under reduced motion; `steam_field_test.dart`, `steam_motion` / `steam_reduced_motion` goldens
 - [x] status: done - Boil animation and audio sync [#30] — `boil_sync.dart` stages (simmer/rolling/ready/burnt) updated inside each 30 Hz rules step; boil loop and ready chime fire on that step; lid rattle and bubbles; `boil_sync_test.dart`, `test/app/boil_audio_test.dart`, `boil_rolling` golden
 - [x] status: done - Painted pot, lid and steam assets [#33] — generated art packed by `tool/pack_art.dart` into `pots.webp` (5.3 MB decoded) and `smoke.webp` (1.1 MB); lid seated at the measured rim (pot rim centre 292/1024, lid seat 240/1024); glass lid tinted; textured steam/smoke in `SteamField`; bubbling surface at the rolling boil
+- [x] status: done - Full-body animated customers [#34] — six generated customers packed at 0.55× (33.7 MB decoded, ~3.2 MB on disk); pure `CustomerCast` (walk in stride-locked from the nearer side, idle ↔ impatient, happy/annoyed reaction, walk away, 100 ms cross-fades, entrance waits for the slot to clear); `CustomerSprites` draws by the feet; tickets float beside heads (`StageLayout.customerHeight`, `ticketOrigin`); reduced motion fades in place
 - [ ] status: pending - Integrate animation, audio, and reduced motion [#11]
 - [ ] status: pending - Motion design pass: transitions, micro-interactions, haptics, 100 ms response [#31]
 - [ ] status: pending - Build the market entrance and ticket selection [#12]
@@ -120,6 +121,10 @@ GitHub issue numbers are in brackets.
 - The **hit-area widget test** passes: every hit box is ≥ 48×48, inside the safe stage and non-overlapping on all tested sizes.
 - **Golden tests in both languages** (English and Myanmar) pass for entrance, tickets, brief, tutorial, live, pause, receipt and shop.
 - `flutter analyze` is clean; app and package tests pass; every module ≥ 85 % line coverage.
+
+## Art memory budget
+- Decoded atlases added by #33/#34: pots 5.3 MB, smoke 1.1 MB, customers 33.7 MB (teen 4.8, flower 5.2, uncle 7.0, phone 5.2, grandma 5.3, rider 6.2) = 40.1 MB. The old half-body `people.webp` (6.0 MB) is no longer loaded.
+- Customers are packed at 0.55× of the 384×768 source cells (≈ 2.2× upscale on a 3× phone at full standing height); raise the scale in `tool/pack_art.dart` if device checks show softness and memory allows.
 
 ## Verification
 - status: pending

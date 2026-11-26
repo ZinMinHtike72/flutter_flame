@@ -94,6 +94,10 @@ void main() {
       await action(ActionType.brief, MarketBrief, 1);
       await snap("brief");
       await action(ActionType.start, ShiftHud, 1);
+      // Let the first customer finish fading in before the picture.
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 34));
+      }
       await snap("tutorial");
 
       final game = tester
