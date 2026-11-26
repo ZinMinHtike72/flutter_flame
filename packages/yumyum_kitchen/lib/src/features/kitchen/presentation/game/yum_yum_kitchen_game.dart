@@ -5,8 +5,10 @@ import "dart:ui";
 import "package:flame/components.dart";
 import "package:flame/events.dart";
 import "package:flame/game.dart";
+import "package:flutter/scheduler.dart";
 import "package:yumyum_kitchen/src/features/kitchen/domain/kitchen_run.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/bloc/kitchen_bloc.dart";
+import "package:yumyum_kitchen/src/features/kitchen/presentation/game/frame_timing.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/kitchen_audio.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/market_art.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/stage_layout.dart";
@@ -14,7 +16,11 @@ import "package:yumyum_kitchen/src/features/kitchen/presentation/game/stage_layo
 /// Full-screen kitchen: the 1280×720 art fills the screen with cover fit and
 /// the interactive counter is laid out inside the safe stage.
 class YumYumKitchenGame extends FlameGame {
-  YumYumKitchenGame(this.bloc, this.audio);
+  YumYumKitchenGame(this.bloc, this.audio) {
+    // Flame's own loop runs every vsync. Keep it stopped and step the engine
+    // from [_onVsync] instead, which caps update and render at 30 fps.
+    paused = true;
+  }
   final KitchenBloc bloc;
   final KitchenAudio audio;
   final art = MarketArt();
@@ -25,8 +31,13 @@ class YumYumKitchenGame extends FlameGame {
 
   /// System view padding (left, top, right, bottom) from the host widget.
   Rect insets = Rect.zero;
-  double _fraction = 0;
   StageLayout? _layout;
+  final _throttle = FrameThrottle();
+  final _rulesClock = FixedStepClock();
+  bool _driving = false;
+
+  /// Engine steps run so far (update + render), for frame-cap tests.
+  int engineSteps = 0;
 
   @override
   Color backgroundColor() => const Color(0xFF102A2D);
@@ -65,12 +76,35 @@ class YumYumKitchenGame extends FlameGame {
   }
 
   @override
+  void onAttach() {
+    super.onAttach();
+    _driving = true;
+    _throttle.reset();
+    SchedulerBinding.instance.scheduleFrameCallback(_onVsync);
+  }
+
+  @override
+  void onDetach() {
+    _driving = false;
+    super.onDetach();
+  }
+
+  void _onVsync(Duration timestamp) {
+    if (!_driving) {
+      return;
+    }
+    SchedulerBinding.instance.scheduleFrameCallback(_onVsync);
+    final dt = _throttle.onVsync(timestamp);
+    if (dt != null) {
+      stepEngine(stepTime: dt);
+    }
+  }
+
+  @override
   void update(double dt) {
     super.update(dt);
-    _fraction += dt * 1000;
-    final ms = _fraction.floor();
-    _fraction -= ms;
-    bloc.tick(ms);
+    engineSteps++;
+    _rulesClock.advance(dt * 1000, bloc.tick);
   }
 
   void tap(CounterTarget target) => bloc.tap(target.station, target.index);

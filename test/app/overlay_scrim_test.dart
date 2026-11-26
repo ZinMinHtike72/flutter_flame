@@ -60,6 +60,7 @@ void main() {
     final bloc = tester.element(find.byType(MarketEntrance)).read<KitchenBloc>()
       ..add(const KitchenAction(ActionType.start, 1));
     await waitForWidget(tester, find.byType(ShiftHud));
+    await settleFrames(tester);
     final game = tester
         .widget<GameWidget<YumYumKitchenGame>>(
           find.byType(GameWidget<YumYumKitchenGame>),

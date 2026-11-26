@@ -78,6 +78,13 @@ Future<void> waitForWidget(WidgetTester tester, Finder finder) async {
   expect(finder, findsWidgets);
 }
 
+/// Pumps two 30 fps frames so the throttled game steps and repaints.
+Future<void> settleFrames(WidgetTester tester) async {
+  for (var i = 0; i < 2; i++) {
+    await tester.pump(const Duration(milliseconds: 34));
+  }
+}
+
 class SilentTestAudio extends KitchenAudio {
   @override
   Future<void> preload() async {}

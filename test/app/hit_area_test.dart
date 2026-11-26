@@ -64,6 +64,7 @@ void main() {
           .read<KitchenBloc>()
           .add(const KitchenAction(ActionType.start, 12));
       await waitForWidget(tester, find.byType(ShiftHud));
+      await settleFrames(tester);
 
       final game = tester
           .widget<GameWidget<YumYumKitchenGame>>(
@@ -114,7 +115,7 @@ void main() {
       }
       if (name == "notched phone" && goldensSupported) {
         game.showHitBoxes = true;
-        await tester.pump(const Duration(milliseconds: 40));
+        await settleFrames(tester);
         await expectGolden(tester, "hit_boxes_notched_phone");
       }
       await tester.pumpWidget(const SizedBox());

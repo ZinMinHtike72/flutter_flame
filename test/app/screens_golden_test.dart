@@ -61,7 +61,7 @@ void main() {
         await tester.runAsync(
           () => Future<void>.delayed(const Duration(milliseconds: 100)),
         );
-        await tester.pump();
+        await settleFrames(tester);
         await expectGolden(tester, "${name}_${mode.name}");
       }
 
@@ -94,9 +94,10 @@ void main() {
         await tester.pump();
       }
 
+      await settleFrames(tester);
       await tap(Station.pack);
       bloc.tick(3000);
-      await tester.pump();
+      await settleFrames(tester);
       await tap(Station.pot);
       await tap(Station.bowl);
       expect(bloc.run!.served, 1);
