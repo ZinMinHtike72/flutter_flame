@@ -6,9 +6,12 @@ import "package:yumyum_kitchen/src/features/kitchen/domain/kitchen_run.dart";
 
 class KitchenAudio {
   final _pools = <String, AudioPool>{};
+  AudioPlayer? _loop;
+  bool _loopPlaying = false;
   bool _disposed = false;
   Future<void> preload() async {
     final cache = AudioCache(prefix: "packages/yumyum_kitchen/assets/audio/");
+    await _preloadLoop(cache);
     for (final name in [
       "pack",
       "ceramic",
@@ -38,6 +41,47 @@ class KitchenAudio {
         debugPrint("Kitchen audio: $error");
         return;
       }
+    }
+  }
+
+  Future<void> _preloadLoop(AudioCache cache) async {
+    try {
+      final player = AudioPlayer()..audioCache = cache;
+      await player.setReleaseMode(ReleaseMode.loop);
+      await player.setVolume(.32);
+      await player.setSource(AssetSource("boil.wav"));
+      if (_disposed) {
+        await player.dispose();
+        return;
+      }
+      _loop = player;
+    } on MissingPluginException {
+      return;
+    } on Exception catch (error) {
+      debugPrint("Kitchen audio loop: $error");
+    }
+  }
+
+  /// Starts or stops the boil loop. Called on the rules step where the boil
+  /// starts or ends, so sound and animation change together.
+  void boilLoop({required bool on, required bool sound}) {
+    final play = on && sound;
+    if (play == _loopPlaying) {
+      return;
+    }
+    _loopPlaying = play;
+    final player = _loop;
+    if (player == null) {
+      return;
+    }
+    unawaited(_guard(play ? player.resume : player.pause));
+  }
+
+  Future<void> _guard(Future<void> Function() action) async {
+    try {
+      await action();
+    } on Exception catch (error) {
+      debugPrint("Kitchen audio loop: $error");
     }
   }
 
@@ -75,6 +119,8 @@ class KitchenAudio {
 
   Future<void> dispose() async {
     _disposed = true;
+    await _loop?.dispose();
+    _loop = null;
     for (final pool in _pools.values) {
       await pool.dispose();
     }

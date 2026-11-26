@@ -17,6 +17,7 @@ Last updated: 2026-11-26
 - **Steam**: pooled steam (ready/cooking) and smoke (burnt) puffs per pot in fixed typed arrays, drawn with one `drawRawAtlas`; budget per pot 4/10/18 by quality tier; reduced motion shows one static wisp.
 - **Graphics quality**: on first launch a startup benchmark (two pots of high-tier steam, update + picture recording) picks low/medium/high and saves it; the pause menu's Graphics button cycles the tier. The benchmark never overrides a saved choice.
 - **Pots**: realistic painted pot per state from `equipment.webp`; the ready pot's lifted lid and the cooking pot's glass dome are separate slices (`PotSprites`) so the lid can lift, rattle and tilt.
+- **Boil**: `BoilSync` runs inside each rules step — simmer (first half of cooking, small bubbles), rolling (second half, more bubbles, lid knocks every 180 ms, boil loop), ready (lid pops and settles, loop stops, chime), burnt (silent). Pause stops the loop; reduced motion keeps sound but drops bubbles and rattle.
 - **Debug**: `YumYumKitchenScreen(showHitBoxes: true)` paints the safe stage, zones and hit boxes; the standalone app enables it with `--flavor development --dart-define=SHOW_HIT_BOXES=true`.
 - Rules, campaign and progress are pure Dart in `domain/`; progress is saved locally and settled once per run.
 

@@ -1,5 +1,6 @@
 import "dart:async";
 import "dart:math" as math;
+import "dart:typed_data";
 import "dart:ui";
 
 import "package:flame/components.dart";
@@ -8,6 +9,7 @@ import "package:flame/game.dart";
 import "package:flutter/scheduler.dart";
 import "package:yumyum_kitchen/src/features/kitchen/domain/kitchen_run.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/bloc/kitchen_bloc.dart";
+import "package:yumyum_kitchen/src/features/kitchen/presentation/game/boil_sync.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/frame_timing.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/kitchen_audio.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/market_art.dart";
@@ -57,6 +59,42 @@ class YumYumKitchenGame extends FlameGame {
   /// Soft puff sprite baked at load.
   Image? puff;
   KitchenRun? _steamRun;
+
+  /// Bubbles, lid rattle and boil audio, updated inside each rules step.
+  final boil = BoilSync();
+  KitchenRun? _boilRun;
+  bool _loopSound = true;
+
+  // Cached tear-offs so the per-step callbacks allocate nothing.
+  late final void Function(int ms) _onRulesStep = _rulesStep;
+  late final void Function(BoilChange change) _onBoilChange = _boilChanged;
+
+  /// One fixed 30 Hz rules step: advance the rules, then lock the boil
+  /// animation and audio to the state they just produced.
+  void _rulesStep(int ms) {
+    bloc.tick(ms);
+    final run = bloc.run;
+    if (!identical(run, _boilRun)) {
+      _boilRun = run;
+      boil.reset();
+      audio.boilLoop(on: false, sound: _loopSound);
+    }
+    if (run == null) {
+      return;
+    }
+    final sound = bloc.state.profile.sound;
+    final flipped = boil.step(run, _onBoilChange);
+    if (flipped || sound != _loopSound) {
+      _loopSound = sound;
+      audio.boilLoop(on: boil.loopOn, sound: sound);
+    }
+  }
+
+  void _boilChanged(BoilChange change) {
+    if (change.to == BoilStage.ready) {
+      audio.ready(sound: bloc.state.profile.sound);
+    }
+  }
 
   /// Engine steps run so far (update + render), for frame-cap tests.
   int engineSteps = 0;
@@ -132,7 +170,7 @@ class YumYumKitchenGame extends FlameGame {
   void update(double dt) {
     super.update(dt);
     engineSteps++;
-    _rulesClock.advance(dt * 1000, bloc.tick);
+    _rulesClock.advance(dt * 1000, _onRulesStep);
     _updateSteam(dt);
   }
 
@@ -184,7 +222,6 @@ class _Counter extends PositionComponent with TapCallbacks {
   int _feedback = -1;
   int _effectAt = -2000;
   KitchenRun? _previous;
-  bool _wasReady = false;
   MarketArt get art => kitchen.art;
 
   @override
@@ -228,7 +265,6 @@ class _Counter extends PositionComponent with TapCallbacks {
       _previous = run;
       _feedback = 0;
       _effectAt = -2000;
-      _wasReady = false;
     }
     _feedbackFor(run);
     for (final customer in run.customers) {
@@ -303,11 +339,6 @@ class _Counter extends PositionComponent with TapCallbacks {
 
   void _feedbackFor(KitchenRun run) {
     final profile = kitchen.bloc.state.profile;
-    final ready = run.pots.any((p) => p.phase == PotPhase.ready);
-    if (ready && !_wasReady) {
-      kitchen.audio.ready(sound: profile.sound);
-    }
-    _wasReady = ready;
     if (_feedback != run.feedbackSequence) {
       _feedback = run.feedbackSequence;
       _effectAt = run.now;
@@ -317,6 +348,34 @@ class _Counter extends PositionComponent with TapCallbacks {
         haptics: profile.haptics,
       );
     }
+  }
+
+  /// Bubble points reused every frame (x, y pairs), one exact-size buffer
+  /// per bubble count so drawing needs no views.
+  final _simmerPoints = Float32List(6);
+  final _rollingPoints = Float32List(14);
+  final _bubblePaint = Paint()
+    ..color = const Color(0x99FFFDF2)
+    ..strokeCap = StrokeCap.round;
+
+  /// Rising bubbles in the pot mouth; more and bigger at the rolling boil.
+  void _bubbles(Canvas c, Rect pot, int count, int now) {
+    if (count == 0) {
+      return;
+    }
+    final points = count > 3 ? _rollingPoints : _simmerPoints;
+    final n = points.length ~/ 2;
+    final cx = pot.left + pot.width * .5;
+    final cy = pot.top + pot.height * .41;
+    final rx = pot.width * .26;
+    final ry = pot.height * .05;
+    for (var i = 0; i < n; i++) {
+      final t = ((now + i * 137) % 600) / 600;
+      points[i * 2] = cx + math.cos(i * 2.4 + t) * rx * (.3 + i / 10);
+      points[i * 2 + 1] = cy + math.sin(i * 1.7) * ry - t * ry;
+    }
+    _bubblePaint.strokeWidth = pot.width * (count > 3 ? .035 : .025);
+    c.drawRawPoints(PointMode.points, points, _bubblePaint);
   }
 
   void _halo(Canvas c, Rect rect) {
@@ -379,7 +438,19 @@ class _Counter extends PositionComponent with TapCallbacks {
     } else {
       sprites
         ..drawBody(c, pot.phase, rect, _spritePaint)
-        ..drawLid(c, pot.phase, rect, _spritePaint);
+        ..drawLid(
+          c,
+          pot.phase,
+          rect,
+          _spritePaint,
+          rattle: kitchen.reducedMotion
+              ? 0
+              : kitchen.boil.rattle(index, run.now),
+          tilt: kitchen.reducedMotion ? 0 : kitchen.boil.tilt(index, run.now),
+        );
+      if (!kitchen.reducedMotion) {
+        _bubbles(c, rect, kitchen.boil.bubbles(index), run.now);
+      }
     }
     c.restore();
     if (pot.phase != PotPhase.cooking && !ready) {
