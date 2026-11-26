@@ -17,6 +17,7 @@ import "package:yumyum_kitchen/src/features/kitchen/presentation/game/frame_timi
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/kitchen_audio.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/market_art.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/pot_sprites.dart";
+import "package:yumyum_kitchen/src/features/kitchen/presentation/game/press_feedback.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/quality_benchmark.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/sprite_atlas.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/stage_layout.dart";
@@ -113,6 +114,13 @@ class YumYumKitchenGame extends FlameGame {
 
   /// Engine steps run so far (update + render), for frame-cap tests.
   int engineSteps = 0;
+
+  /// Game motion clock in milliseconds (engine time, 30 steps a second);
+  /// drives press feedback and other micro-interactions.
+  double motionMs = 0;
+
+  /// Press response of counter targets.
+  final press = PressFeedback();
 
   @override
   Color backgroundColor() => const Color(0xFF102A2D);
@@ -230,6 +238,7 @@ class YumYumKitchenGame extends FlameGame {
   void update(double dt) {
     super.update(dt);
     engineSteps++;
+    motionMs += dt * 1000;
     _rulesClock.advance(dt * 1000, _onRulesStep);
     _updateSteam(dt);
   }
@@ -247,7 +256,11 @@ class YumYumKitchenGame extends FlameGame {
     steam.update(dt, run.pots, layout.potSprites, quality, layout.scale);
   }
 
-  void tap(CounterTarget target) => bloc.tap(target.station, target.index);
+  /// Shows the press on the next frame, then hands the tap to the rules.
+  void tap(CounterTarget target) {
+    press.press(target.station, target.index, motionMs);
+    bloc.tap(target.station, target.index);
+  }
 
   @override
   void onDispose() {
@@ -366,6 +379,11 @@ class _Counter extends PositionComponent with TapCallbacks {
   final _crossPaint = Paint()
     ..color = const Color(0xFFFFECD0)
     ..strokeWidth = 5;
+  final _pressRing = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 4;
+  int _chainSeen = 0;
+  double _chainAt = double.negativeInfinity;
   int _feedback = -1;
   int _effectAt = -2000;
   KitchenRun? _previous;
@@ -373,6 +391,7 @@ class _Counter extends PositionComponent with TapCallbacks {
   MarketArt get art => kitchen.art;
 
   static const _unit = Rect.fromLTWH(0, 0, 1, 1);
+  static const _lanternPopMs = 260.0;
   static const _market = Rect.fromLTWH(0, 0, 1280, 421);
   static const _awning = Rect.fromLTWH(0, -35, 1280, 142);
   static const _counterArt = Rect.fromLTWH(0, 421, 1280, 299);
@@ -473,7 +492,11 @@ class _Counter extends PositionComponent with TapCallbacks {
     if (run.guide == Guide.pack) {
       c.drawPath(g.packHalo, _stroke);
     }
+    final packPressed = _pressIn(c, Station.pack, 0, g.pack, ring: g.packHalo);
     art.packs[run.shift.product.index].drawRect(c, g.pack, art.paint);
+    if (packPressed) {
+      c.restore();
+    }
     for (var i = 0; i < run.pots.length; i++) {
       _pot(c, layout, g, run, i);
     }
@@ -485,6 +508,7 @@ class _Counter extends PositionComponent with TapCallbacks {
       _bowl(c, layout, g, run, i);
     }
     for (var i = 0; i < layout.garnishes.length; i++) {
+      final pressed = _pressIn(c, Station.garnish, i, layout.garnishSprites[i]);
       c
         ..drawOval(
           layout.garnishSprites[i],
@@ -496,6 +520,9 @@ class _Counter extends PositionComponent with TapCallbacks {
         MarketArt.garnishOf(Garnish.values[i]),
         g.garnishInner[i],
       );
+      if (pressed) {
+        c.restore();
+      }
     }
     _serving(c, layout, g, run);
     if (kitchen.showHitBoxes) {
@@ -544,6 +571,36 @@ class _Counter extends PositionComponent with TapCallbacks {
     }
   }
 
+  /// Starts the press response for [station] [index]: scales the canvas about
+  /// [rect]'s centre (returns true: restore after drawing), or under reduced
+  /// motion draws a fading ring along [ring] (or around [rect]) instead.
+  bool _pressIn(Canvas c, Station station, int index, Rect rect, {Path? ring}) {
+    final press = kitchen.press;
+    final now = kitchen.motionMs;
+    final t = press.progress(station, index, now);
+    if (t >= 1) {
+      return false;
+    }
+    if (kitchen.reducedMotion) {
+      _pressRing.color = _white(.9 * (1 - t));
+      if (ring != null) {
+        c.drawPath(ring, _pressRing);
+      } else {
+        c.drawOval(rect, _pressRing);
+      }
+      return false;
+    }
+    final scale = press.scale(station, index, now);
+    final cx = rect.left + rect.width / 2;
+    final cy = rect.top + rect.height / 2;
+    c
+      ..save()
+      ..translate(cx, cy)
+      ..scale(scale)
+      ..translate(-cx, -cy);
+    return true;
+  }
+
   /// Draws a filled bar of [fraction] inside [bar] (unit rect + transform).
   void _fill(Canvas c, Rect bar, double fraction, Paint paint) {
     c
@@ -559,6 +616,7 @@ class _Counter extends PositionComponent with TapCallbacks {
     if (run.guide == Guide.serve && run.bowls[i] != null) {
       c.drawPath(g.bowlHalos[i], _stroke);
     }
+    final pressed = _pressIn(c, Station.bowl, i, rect, ring: g.bowlHalos[i]);
     art.dish(
       c,
       run.shift.product,
@@ -568,10 +626,14 @@ class _Counter extends PositionComponent with TapCallbacks {
       rect.width,
       rect.height,
     );
+    if (pressed) {
+      c.restore();
+    }
     if (run.discardBowl != i) {
       return;
     }
     final lines = g.discardLines[i];
+    final discardPressed = _pressIn(c, Station.discard, i, layout.discards[i]);
     c
       ..drawCircle(
         g.discardCenters[i],
@@ -580,6 +642,9 @@ class _Counter extends PositionComponent with TapCallbacks {
       )
       ..drawLine(lines[0], lines[1], _crossPaint)
       ..drawLine(lines[2], lines[3], _crossPaint);
+    if (discardPressed) {
+      c.restore();
+    }
   }
 
   void _pot(
@@ -598,10 +663,20 @@ class _Counter extends PositionComponent with TapCallbacks {
     final bob = ready && !kitchen.reducedMotion
         ? math.sin(run.now / 100) * 2
         : 0.0;
+    final shake = kitchen.reducedMotion
+        ? 0.0
+        : kitchen.boil.shake(index, run.now) * rect.width;
     final sprites = kitchen.potSprites;
+    final pressed = _pressIn(
+      c,
+      Station.pot,
+      index,
+      rect,
+      ring: g.potHalos[index],
+    );
     c
       ..save()
-      ..translate(0, bob);
+      ..translate(shake, bob);
     if (sprites == null) {
       art.itemRect(c, pot.phase.index, rect);
     } else {
@@ -620,6 +695,9 @@ class _Counter extends PositionComponent with TapCallbacks {
       );
     }
     c.restore();
+    if (pressed) {
+      c.restore();
+    }
     if (pot.phase != PotPhase.cooking && !ready) {
       return;
     }
@@ -840,8 +918,32 @@ class _Counter extends PositionComponent with TapCallbacks {
         ..color = const Color(0xFF573A27)
         ..strokeWidth = 4,
     );
+    if (run.chain != _chainSeen) {
+      if (run.chain > _chainSeen) {
+        _chainAt = kitchen.motionMs;
+      }
+      _chainSeen = run.chain;
+    }
     for (var i = 0; i < 5; i++) {
-      if (i < run.chain) {
+      final popAge = kitchen.motionMs - _chainAt;
+      if (i == run.chain - 1 &&
+          popAge < _lanternPopMs &&
+          !kitchen.reducedMotion) {
+        // The newest lantern pops in: overshoot on scale only.
+        final t = popAge / _lanternPopMs;
+        final u = t - 1;
+        final pop = .3 + .7 * (1 + 2.70158 * u * u * u + 1.70158 * u * u);
+        final r = _litLanterns[i];
+        final cx = r.left + r.width / 2;
+        final cy = r.top + r.height / 2;
+        c
+          ..save()
+          ..translate(cx, cy)
+          ..scale(pop)
+          ..translate(-cx, -cy);
+        art.itemRect(c, MarketArt.lantern, r);
+        c.restore();
+      } else if (i < run.chain) {
         art.itemRect(c, MarketArt.lantern, _litLanterns[i]);
       } else {
         c.drawOval(_unlitLanterns[i], _paint..color = const Color(0xFF744732));

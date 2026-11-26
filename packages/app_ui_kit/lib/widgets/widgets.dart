@@ -15,6 +15,7 @@ export "package:app_ui_kit/widgets/app_date_chip.dart";
 export "package:app_ui_kit/widgets/app_date_picker.dart";
 export "package:app_ui_kit/widgets/app_entrance.dart";
 export "package:app_ui_kit/widgets/app_error_card.dart";
+export "package:app_ui_kit/widgets/app_fade_switcher.dart";
 export "package:app_ui_kit/widgets/app_fade_through.dart";
 export "package:app_ui_kit/widgets/app_float.dart";
 export "package:app_ui_kit/widgets/app_glass_navigation_bar.dart";

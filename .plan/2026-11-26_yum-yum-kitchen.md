@@ -92,7 +92,7 @@ GitHub issue numbers are in brackets.
 - [x] status: done - Painted pot, lid and steam assets [#33] — generated art packed by `tool/pack_art.dart` into `pots.webp` (5.3 MB decoded) and `smoke.webp` (1.1 MB); lid seated at the measured rim (pot rim centre 292/1024, lid seat 240/1024); glass lid tinted; textured steam/smoke in `SteamField`; bubbling surface at the rolling boil
 - [x] status: done - Full-body animated customers [#34] — six generated customers packed at 0.55× (33.7 MB decoded, ~3.2 MB on disk); pure `CustomerCast` (walk in stride-locked from the nearer side, idle ↔ impatient, happy/annoyed reaction, walk away, 100 ms cross-fades, entrance waits for the slot to clear); `CustomerSprites` draws by the feet; tickets float beside heads (`StageLayout.customerHeight`, `ticketOrigin`); reduced motion fades in place
 - [ ] status: pending - Integrate animation, audio, and reduced motion [#11]
-- [ ] status: pending - Motion design pass: transitions, micro-interactions, haptics, 100 ms response [#31]
+- [x] status: done - Motion design pass: transitions, micro-interactions, haptics, 100 ms response [#31] — `PressFeedback` (0.94 → 1 over 120 ms, drawn on the next 30 fps frame; ring under reduced motion), `hapticFor` (selection / light / medium / heavy), `AppFadeSwitcher` (220 ms pages, 160 ms pause), coins count up, lantern pop, burnt-pot shake, awning lift; `test/app/motion_test.dart`, `motion_test.dart`, `app_fade_switcher_test.dart`
 - [ ] status: pending - Build the market entrance and ticket selection [#12]
 - [ ] status: pending - Teach the first order [#13]
 - [ ] status: pending - Implement scoring and lantern combos [#14]

@@ -1,5 +1,6 @@
 import "dart:async";
 import "dart:math";
+import "package:app_ui_kit/widgets/app_fade_switcher.dart";
 import "package:app_ui_kit/widgets/app_scaffold.dart";
 import "package:app_ui_kit/widgets/app_snack_bar.dart";
 import "package:flame/game.dart";
@@ -120,6 +121,9 @@ class _Session {
   }
 }
 
+/// Scrim fade for the pause overlay (motion design: 160 ms).
+const _overlayFade = Duration(milliseconds: 160);
+
 class _Content extends StatelessWidget {
   const _Content(this.options);
   final YumYumKitchenScreen options;
@@ -220,51 +224,60 @@ class _Content extends StatelessWidget {
                     },
                     child: ScrimGuard(
                       blocking: state.page != KitchenPage.live,
-                      child: switch (state.page) {
-                        KitchenPage.loading => Center(
-                          child: Text(
-                            context.kitchen.loading,
-                            style: marketText(18),
-                          ),
-                        ),
-                        KitchenPage.failure => MarketBackdrop(
-                          child: Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  context.kitchen.problem,
-                                  style: marketText(16),
-                                ),
-                                MarketButton(
-                                  context.kitchen.retry,
-                                  () => context.act(ActionType.recover),
-                                ),
-                              ],
+                      child: AppFadeSwitcher(
+                        pageKey: state.page,
+                        // The pause overlay fades faster than page changes.
+                        duration:
+                            state.page == KitchenPage.pause ||
+                                state.page == KitchenPage.live
+                            ? _overlayFade
+                            : appFadeSwitchDuration,
+                        child: switch (state.page) {
+                          KitchenPage.loading => Center(
+                            child: Text(
+                              context.kitchen.loading,
+                              style: marketText(18),
                             ),
                           ),
-                        ),
-                        KitchenPage.entrance => MarketEntrance(
-                          state,
-                          onExit: options.embedded
-                              ? () => unawaited(_exit(context))
-                              : null,
-                        ),
-                        KitchenPage.tickets => MarketTickets(state),
-                        KitchenPage.brief => MarketBrief(state),
-                        KitchenPage.live => ShiftHud(game.bloc.run!),
-                        KitchenPage.pause => PauseMenu(
-                          state,
-                          exit: () => unawaited(_exit(context)),
-                        ),
-                        KitchenPage.receipt => ShiftReceipt(
-                          game.bloc.run!,
-                          openProduct: () => unawaited(
-                            _product(context, game.bloc.run!.shift.product),
+                          KitchenPage.failure => MarketBackdrop(
+                            child: Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    context.kitchen.problem,
+                                    style: marketText(16),
+                                  ),
+                                  MarketButton(
+                                    context.kitchen.retry,
+                                    () => context.act(ActionType.recover),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                        ),
-                        KitchenPage.shop => UpgradeShop(state),
-                      },
+                          KitchenPage.entrance => MarketEntrance(
+                            state,
+                            onExit: options.embedded
+                                ? () => unawaited(_exit(context))
+                                : null,
+                          ),
+                          KitchenPage.tickets => MarketTickets(state),
+                          KitchenPage.brief => MarketBrief(state),
+                          KitchenPage.live => ShiftHud(game.bloc.run!),
+                          KitchenPage.pause => PauseMenu(
+                            state,
+                            exit: () => unawaited(_exit(context)),
+                          ),
+                          KitchenPage.receipt => ShiftReceipt(
+                            game.bloc.run!,
+                            openProduct: () => unawaited(
+                              _product(context, game.bloc.run!.shift.product),
+                            ),
+                          ),
+                          KitchenPage.shop => UpgradeShop(state),
+                        },
+                      ),
                     ),
                   ),
                 ),

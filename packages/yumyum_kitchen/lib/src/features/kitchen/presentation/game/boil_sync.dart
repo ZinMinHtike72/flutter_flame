@@ -126,6 +126,23 @@ class BoilSync {
     }
   }
 
+  /// How long a pot shakes after it burns, and how far (share of its width).
+  static const shakeMs = 420;
+  static const shakeAmplitude = .025;
+
+  /// Sideways shake of [pot] at [now] as a share of its width: a quick,
+  /// decaying wobble on the step it burns, then still.
+  double shake(int pot, int now) {
+    if (_stages[pot] != BoilStage.burnt) {
+      return 0;
+    }
+    final age = now - _changedAt[pot];
+    if (age < 0 || age >= shakeMs) {
+      return 0;
+    }
+    return math.sin(age / 22) * shakeAmplitude * (1 - age / shakeMs);
+  }
+
   /// Lid tilt in radians that goes with [rattle].
   double tilt(int pot, int now) => rattle(pot, now) * 2.2;
 

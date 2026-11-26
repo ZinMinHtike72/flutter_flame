@@ -135,7 +135,40 @@ class MarketBackdrop extends StatelessWidget {
         ),
       ),
       SafeStage(child: child),
+      if (entrance) const _AwningLift(),
     ],
+  );
+}
+
+/// The striped awning lifts away to reveal the entrance (600 ms,
+/// easeOutCubic). Decorative only: it never takes taps, and reduced motion
+/// shows the entrance straight away.
+class _AwningLift extends StatelessWidget {
+  const _AwningLift();
+  static const duration = Duration(milliseconds: 600);
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    child: TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : duration,
+      curve: Curves.easeOutCubic,
+      builder: (context, lift, child) => lift >= 1
+          ? const SizedBox.shrink()
+          : Align(
+              alignment: Alignment.topCenter,
+              child: FractionalTranslation(
+                translation: Offset(0, -lift),
+                child: child,
+              ),
+            ),
+      child: FractionallySizedBox(
+        widthFactor: 1,
+        heightFactor: .62,
+        child: Image.asset("${imageRoot}awning.webp", fit: BoxFit.cover),
+      ),
+    ),
   );
 }
 

@@ -3,6 +3,7 @@ import "package:audioplayers/audioplayers.dart";
 import "package:flutter/foundation.dart";
 import "package:flutter/services.dart";
 import "package:yumyum_kitchen/src/features/kitchen/domain/kitchen_run.dart";
+import "package:yumyum_kitchen/src/features/kitchen/presentation/game/press_feedback.dart";
 
 class KitchenAudio {
   final _pools = <String, AudioPool>{};
@@ -98,8 +99,22 @@ class KitchenAudio {
     if (sound && name != null) {
       unawaited(_sound(name));
     }
-    if (haptics && (cue == KitchenCue.served || cue == KitchenCue.streak)) {
-      unawaited(HapticFeedback.lightImpact());
+    if (haptics) {
+      vibrate(hapticFor(cue));
+    }
+  }
+
+  /// Fires [haptic] on the device (no-op for [Haptic.none]).
+  void vibrate(Haptic haptic) {
+    final call = switch (haptic) {
+      Haptic.selection => HapticFeedback.selectionClick,
+      Haptic.light => HapticFeedback.lightImpact,
+      Haptic.medium => HapticFeedback.mediumImpact,
+      Haptic.heavy => HapticFeedback.heavyImpact,
+      Haptic.none => null,
+    };
+    if (call != null) {
+      unawaited(call());
     }
   }
 

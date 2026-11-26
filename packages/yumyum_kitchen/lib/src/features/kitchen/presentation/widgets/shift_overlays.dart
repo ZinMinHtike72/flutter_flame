@@ -1,3 +1,4 @@
+import "package:app_ui_kit/widgets/app_count_up.dart";
 import "package:flutter/material.dart" show Icons;
 import "package:flutter/widgets.dart";
 import "package:yumyum_kitchen/src/features/kitchen/domain/campaign.dart";
@@ -55,7 +56,12 @@ class ShiftHud extends StatelessWidget {
                       s.combo,
                     ),
                     const SizedBox(width: 4),
-                    _HudStat(Icons.toll_rounded, "${run.coins}", s.coins),
+                    _HudStat(
+                      Icons.toll_rounded,
+                      "${run.coins}",
+                      s.coins,
+                      count: run.coins,
+                    ),
                     const SizedBox(width: 4),
                     _HudStat(
                       Icons.timer_outlined,
@@ -81,10 +87,13 @@ class ShiftHud extends StatelessWidget {
 }
 
 class _HudStat extends StatelessWidget {
-  const _HudStat(this.icon, this.value, this.label);
+  const _HudStat(this.icon, this.value, this.label, {this.count});
   final IconData icon;
   final String value;
   final String label;
+
+  /// When set, the number counts up to it (coins after a serve).
+  final int? count;
   @override
   Widget build(BuildContext context) => Semantics(
     label: "$label $value",
@@ -101,7 +110,15 @@ class _HudStat extends StatelessWidget {
           children: [
             Icon(icon, color: gold, size: 18),
             const SizedBox(width: 4),
-            Text(value, style: marketText(15, bold: true)),
+            if (count case final target?)
+              AppCountUp(
+                value: target.toDouble(),
+                format: (v) => "${v.round()}",
+                duration: const Duration(milliseconds: 400),
+                style: marketText(15, bold: true),
+              )
+            else
+              Text(value, style: marketText(15, bold: true)),
           ],
         ),
       ),
