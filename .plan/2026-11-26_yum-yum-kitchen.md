@@ -105,14 +105,14 @@ GitHub issue numbers are in brackets.
 - [ ] status: pending - Verify embedded launch, exit, and orientation restoration [#21]
 - [ ] status: pending - Complete bilingual visual and device QA at 30 fps [#22]
 - [ ] status: pending - Hit-area audit and safe-area QA on notched, foldable and tablet devices [#32]
-- [ ] status: pending - Update docs/features.md and docs/api.md.
+- [x] status: done - Update docs/features.md and docs/api.md.
 
 ## Test Plan
-- [ ] status: pending - Rules: timed cooking, burn, matching, patience, scoring, settlement (plain tests with a controlled clock and seeded random).
-- [ ] status: pending - Layout: `StageLayout` unit tests and the hit-area widget test (inside safe stage, ≥ 48×48, no overlap) on 852×393 with cutout insets, 640×360, 2208×1768 foldable, 1024×768 tablet.
-- [ ] status: pending - Overlay scrim test: taps on the pause/results/shop scrim do not change the run.
-- [ ] status: pending - `FrameThrottle` and `FixedStepClock` unit tests; 30-updates-per-second widget test.
-- [ ] status: pending - Golden tests of every screen in English and Myanmar, light and dark, phone and small phone.
+- [x] status: done - Rules: timed cooking, burn, matching, patience, scoring, settlement (plain tests with a controlled clock and seeded random).
+- [x] status: done - Layout: `StageLayout` unit tests and the hit-area widget test (inside safe stage, ≥ 48×48, no overlap) on 852×393 with cutout insets, 640×360, 2208×1768 foldable, 1024×768 tablet.
+- [x] status: done - Overlay scrim test: taps on the pause/results/shop scrim do not change the run.
+- [x] status: done - `FrameThrottle` and `FixedStepClock` unit tests; 30-updates-per-second widget test.
+- [x] status: done - Golden tests of every screen in English and Myanmar, light and dark, phone and small phone.
 - [ ] status: pending - Profile runs on Galaxy A54 and iPhone 14 in the shift-12 rush.
 
 ## Acceptance
