@@ -74,8 +74,8 @@ void main() {
     expect(PotSprites.hasLid(PotPhase.ready), isTrue);
     expect(PotSprites.hasLid(PotPhase.empty), isFalse);
     expect(PotSprites.hasLid(PotPhase.burnt), isFalse);
-    expect(PotSprites.poseFor(PotPhase.cooking), (0, 0, 0));
-    expect(PotSprites.poseFor(PotPhase.ready).$1, greaterThan(0));
+    expect(PotSprites.poseFor(PotPhase.cooking), same(LidPose.seated));
+    expect(PotSprites.poseFor(PotPhase.ready).lift, greaterThan(0));
 
     tester.view
       ..physicalSize = const Size(1500, 400)

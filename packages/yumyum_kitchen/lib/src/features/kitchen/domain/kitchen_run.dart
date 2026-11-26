@@ -113,6 +113,8 @@ class KitchenRun {
   }
 
   /// Advances the simulation clock to each boundary, including on slow frames.
+  ///
+  /// Runs every rules step, so it uses index loops and allocates nothing.
   void advance(int milliseconds) {
     if (paused || ended || milliseconds <= 0) {
       return;
@@ -124,7 +126,8 @@ class KitchenRun {
     final end = now + duration;
     while (now < end) {
       var boundary = end;
-      for (final pot in pots) {
+      for (var i = 0; i < pots.length; i++) {
+        final pot = pots[i];
         if (pot.phase == PotPhase.cooking ||
             (!guided && pot.phase == PotPhase.ready)) {
           boundary = min(boundary, pot.deadline);
@@ -132,13 +135,17 @@ class KitchenRun {
       }
       if (!guided) {
         boundary = min(boundary, _nextArrival);
-        for (final customer in customers.nonNulls) {
-          boundary = min(boundary, customer.expires);
+        for (var i = 0; i < customers.length; i++) {
+          final customer = customers[i];
+          if (customer != null) {
+            boundary = min(boundary, customer.expires);
+          }
         }
         elapsed += boundary - now;
       }
       now = boundary;
-      for (final pot in pots) {
+      for (var i = 0; i < pots.length; i++) {
+        final pot = pots[i];
         if (pot.deadline != now) {
           continue;
         }
@@ -156,9 +163,10 @@ class KitchenRun {
       if (guided) {
         continue;
       }
-      for (final customer in customers.nonNulls.toList()) {
-        if (customer.expires == now) {
-          customers[customer.slot] = null;
+      for (var i = 0; i < customers.length; i++) {
+        final customer = customers[i];
+        if (customer != null && customer.expires == now) {
+          customers[i] = null;
           missed++;
           _resetChain();
           _signal(KitchenCue.missed);

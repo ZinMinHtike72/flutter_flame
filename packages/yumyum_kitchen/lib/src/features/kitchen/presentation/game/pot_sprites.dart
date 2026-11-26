@@ -3,6 +3,18 @@ import "dart:ui";
 import "package:yumyum_kitchen/src/features/kitchen/domain/kitchen_run.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/sprite_atlas.dart";
 
+/// Where a lid rests: [lift] and [shift] as fractions of the pot cell,
+/// [tilt] in radians.
+class LidPose {
+  const LidPose(this.lift, this.shift, this.tilt);
+  final double lift;
+  final double shift;
+  final double tilt;
+
+  static const seated = LidPose(0, 0, 0);
+  static const lifted = LidPose(.2, .12, -.3);
+}
+
 /// Painted pots, lids and boiling surface from `assets/images/pots.webp`
 /// (packed from `art/sources/pot_bodies.png`, `pot_lids.png` and
 /// `boil_surface.png`).
@@ -49,12 +61,10 @@ class PotSprites {
   static bool hasLid(PotPhase phase) =>
       phase == PotPhase.cooking || phase == PotPhase.ready;
 
-  /// Resting lid pose for [phase]: (lift, shift, tilt) — lift and shift as
-  /// fractions of the cell, tilt in radians. Ready lids are lifted aside.
-  static (double, double, double) poseFor(PotPhase phase) => switch (phase) {
-    PotPhase.ready => (.2, .12, -.3),
-    _ => (0, 0, 0),
-  };
+  /// Resting lid pose for [phase]. Ready lids are lifted aside. Returns
+  /// shared constants, so drawing allocates nothing.
+  static LidPose poseFor(PotPhase phase) =>
+      phase == PotPhase.ready ? LidPose.lifted : LidPose.seated;
 
   /// Draws the lidless painted pot for [phase] into the square [cell].
   void drawBody(Canvas canvas, PotPhase phase, Rect cell, Paint paint) =>
@@ -85,7 +95,10 @@ class PotSprites {
     if (!hasLid(phase)) {
       return;
     }
-    final (lift, shift, rest) = poseFor(phase);
+    final pose = poseFor(phase);
+    final lift = pose.lift;
+    final shift = pose.shift;
+    final rest = pose.tilt;
     final px = cell.left + cell.width * rimX;
     final py = cell.top + cell.height * rimY;
     canvas

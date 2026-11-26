@@ -7,6 +7,7 @@ import "package:flame/events.dart";
 import "package:flame/game.dart";
 import "package:flutter/scheduler.dart";
 import "package:flutter/services.dart";
+import "package:yumyum_kitchen/src/features/kitchen/domain/campaign.dart";
 import "package:yumyum_kitchen/src/features/kitchen/domain/kitchen_run.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/bloc/kitchen_bloc.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/boil_sync.dart";
@@ -84,6 +85,7 @@ class YumYumKitchenGame extends FlameGame {
   /// One fixed 30 Hz rules step: advance the rules, then lock the boil
   /// animation and audio to the state they just produced.
   void _rulesStep(int ms) {
+    assert(_preloaded, "The shift clock must not run before preload.");
     bloc.tick(ms);
     final run = bloc.run;
     if (!identical(run, _boilRun)) {
@@ -122,9 +124,9 @@ class YumYumKitchenGame extends FlameGame {
       return null;
     }
     final current = _layout;
-    final screen = Size(size.x, size.y);
     if (current != null &&
-        current.screen == screen &&
+        current.screen.width == size.x &&
+        current.screen.height == size.y &&
         current.pots.length == run.pots.length &&
         current.garnishes.length == run.shift.garnishCount &&
         _layoutInsets == insets) {
@@ -132,7 +134,7 @@ class YumYumKitchenGame extends FlameGame {
     }
     _layoutInsets = insets;
     return _layout = StageLayout.compute(
-      screen: screen,
+      screen: Size(size.x, size.y),
       insets: insets,
       pots: run.pots.length,
       garnishes: run.shift.garnishCount,
@@ -171,7 +173,32 @@ class YumYumKitchenGame extends FlameGame {
       benchmarkTier = QualityBenchmark.tierFor(QualityBenchmark.measure(puff));
       bloc.add(KitchenAction(ActionType.benchmark, benchmarkTier.index));
     }
-    add(_Counter(this));
+    add(_counter = _Counter(this));
+    _preloaded = true;
+  }
+
+  bool _preloaded = false;
+
+  /// True once every atlas, image and sound is loaded. Until then the game
+  /// is not mounted, so no shift can start and the rules clock cannot run.
+  bool get preloaded => _preloaded;
+
+  _Counter? _counter;
+
+  /// The kitchen draws everything itself in screen space. Flame's default
+  /// camera and its empty world draw nothing yet allocate closures on every
+  /// frame, so only the counter's tree is rendered.
+  @override
+  void renderTree(Canvas canvas) {
+    _counter?.renderTree(canvas);
+  }
+
+  /// Same for updates: lifecycle events (adds and removes) are still
+  /// processed, but the unused camera subtree is not ticked. The counter has
+  /// no update logic of its own; the game's [update] drives everything.
+  @override
+  void updateTree(double dt) {
+    processLifecycleEvents();
   }
 
   @override
@@ -231,6 +258,85 @@ class YumYumKitchenGame extends FlameGame {
   }
 }
 
+/// Geometry of one layout + product + customer count, built once so the
+/// frame loop only does arithmetic and canvas transforms.
+class _Geometry {
+  _Geometry(this.layout, this.product, this.slots, MarketArt art)
+    : pack = StageLayout.fit(layout.pack, art.packs[product.index].aspect),
+      garnishInner = [for (final r in layout.garnishSprites) r.deflate(5)],
+      ticket = Path()
+        ..addRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromLTWH(0, 0, layout.ticketWidth, layout.ticketHeight),
+            Radius.circular(20 * layout.ticketScale),
+          ),
+        ),
+      ticketLeft = [
+        for (var i = 0; i < slots; i++) layout.ticketOrigin(i, slots).dx,
+      ],
+      ticketTop = [
+        for (var i = 0; i < slots; i++) layout.ticketOrigin(i, slots).dy,
+      ],
+      guestX = [for (var i = 0; i < slots; i++) layout.guestX(i, slots)] {
+    packHalo = _halo(pack);
+    potHalos = [for (final r in layout.potSprites) _halo(r)];
+    bowlHalos = [for (final r in layout.bowlSprites) _halo(r)];
+    for (final r in layout.potSprites) {
+      final bar = Rect.fromLTWH(
+        r.left + r.width * .2,
+        r.bottom - 4,
+        r.width * .6,
+        8,
+      );
+      bars.add(bar);
+      barPaths.add(
+        Path()
+          ..addRRect(RRect.fromRectAndRadius(bar, const Radius.circular(4))),
+      );
+    }
+    for (final slot in layout.discards) {
+      final c = slot.center;
+      final radius =
+          (slot.height < slot.width ? slot.height : slot.width) / 2 - 4;
+      final arm = radius * .38;
+      discardCenters.add(c);
+      discardRadius.add(radius);
+      discardLines.add([
+        c.translate(-arm, -arm),
+        c.translate(arm, arm),
+        c.translate(-arm, arm),
+        c.translate(arm, -arm),
+      ]);
+    }
+  }
+
+  final StageLayout layout;
+  final NoodleProduct product;
+  final int slots;
+  final Rect pack;
+  late final Path packHalo;
+  late final List<Path> potHalos;
+  late final List<Path> bowlHalos;
+  final bars = <Rect>[];
+  final barPaths = <Path>[];
+  final discardCenters = <Offset>[];
+  final discardRadius = <double>[];
+  final discardLines = <List<Offset>>[];
+  final List<Rect> garnishInner;
+  final Path ticket;
+  final List<double> ticketLeft;
+  final List<double> ticketTop;
+  final List<double> guestX;
+
+  static Path _halo(Rect r) => Path()
+    ..addRRect(
+      RRect.fromRectAndRadius(r.inflate(3), const Radius.circular(18)),
+    );
+
+  bool matches(StageLayout l, NoodleProduct p, int s) =>
+      identical(l, layout) && p == product && s == slots;
+}
+
 class _Counter extends PositionComponent with TapCallbacks {
   _Counter(this.kitchen);
   final YumYumKitchenGame kitchen;
@@ -257,10 +363,35 @@ class _Counter extends PositionComponent with TapCallbacks {
     ..style = PaintingStyle.stroke
     ..strokeWidth = 5
     ..color = const Color(0xFFFFD169);
+  final _crossPaint = Paint()
+    ..color = const Color(0xFFFFECD0)
+    ..strokeWidth = 5;
   int _feedback = -1;
   int _effectAt = -2000;
   KitchenRun? _previous;
+  _Geometry? _geometry;
   MarketArt get art => kitchen.art;
+
+  static const _unit = Rect.fromLTWH(0, 0, 1, 1);
+  static const _market = Rect.fromLTWH(0, 0, 1280, 421);
+  static const _awning = Rect.fromLTWH(0, -35, 1280, 142);
+  static const _counterArt = Rect.fromLTWH(0, 421, 1280, 299);
+  static final _unlitLanterns = [
+    for (var i = 0; i < 5; i++)
+      Rect.fromCenter(
+        center: Offset(492 + i * 74.0, 96),
+        width: 19,
+        height: 27,
+      ),
+  ];
+  static final _litLanterns = [
+    for (var i = 0; i < 5; i++)
+      Rect.fromCenter(
+        center: Offset(492 + i * 74.0, 96),
+        width: 37,
+        height: 48,
+      ),
+  ];
 
   @override
   void onGameResize(Vector2 size) {
@@ -270,6 +401,13 @@ class _Counter extends PositionComponent with TapCallbacks {
 
   @override
   bool containsLocalPoint(Vector2 point) => true;
+
+  /// The counter sits at the origin with an identity transform and no
+  /// children or decorators, so its tree is just [render]. Flame's default
+  /// path tears off `super.renderTree` and runs the decorator chain, which
+  /// allocates closures every frame.
+  @override
+  void renderTree(Canvas canvas) => render(canvas);
 
   @override
   void onTapDown(TapDownEvent event) {
@@ -284,66 +422,90 @@ class _Counter extends PositionComponent with TapCallbacks {
     }
   }
 
+  _Geometry _geometryFor(StageLayout layout, KitchenRun run) {
+    final current = _geometry;
+    if (current != null &&
+        current.matches(layout, run.shift.product, run.shift.slots)) {
+      return current;
+    }
+    return _geometry = _Geometry(
+      layout,
+      run.shift.product,
+      run.shift.slots,
+      art,
+    );
+  }
+
   @override
   void render(Canvas c) {
     final layout = kitchen.layout;
     final run = kitchen.bloc.run;
-    _artLayer(c, layout, (canvas) {
-      art.draw(canvas, "market.webp", const Rect.fromLTWH(0, 0, 1280, 421));
-      art.draw(canvas, "awning.webp", const Rect.fromLTWH(0, -35, 1280, 142));
-      if (run != null) {
-        _lanterns(canvas, run);
-      }
-    });
+    _beginArt(c, layout);
+    art.market.drawRect(c, _market, art.paint);
+    art.awning.drawRect(c, _awning, art.paint);
+    if (run != null) {
+      _lanterns(c, run);
+    }
+    c.restore();
     if (run == null || layout == null) {
-      _artLayer(c, layout, _drawCounterArt);
+      _beginArt(c, layout);
+      art.counter.drawRect(c, _counterArt, art.paint);
+      c.restore();
       return;
     }
+    final g = _geometryFor(layout, run);
     if (!identical(run, _previous)) {
       _previous = run;
       _feedback = 0;
       _effectAt = -2000;
     }
     _feedbackFor(run);
-    _customers(c, layout, run);
-    _artLayer(c, layout, _drawCounterArt);
-    for (final customer in run.customers) {
+    _customers(c, layout, g, run);
+    _beginArt(c, layout);
+    art.counter.drawRect(c, _counterArt, art.paint);
+    c.restore();
+    for (var i = 0; i < run.customers.length; i++) {
+      final customer = run.customers[i];
       if (customer != null) {
-        _ticket(c, layout, run, customer);
+        _ticket(c, g, run, customer);
       }
     }
-    _pack(c, layout, run);
+    if (run.guide == Guide.pack) {
+      c.drawPath(g.packHalo, _stroke);
+    }
+    art.packs[run.shift.product.index].drawRect(c, g.pack, art.paint);
     for (var i = 0; i < run.pots.length; i++) {
-      _pot(c, layout, run, i);
+      _pot(c, layout, g, run, i);
     }
     final puff = kitchen.puff;
     if (puff != null && !kitchen.reducedMotion) {
       kitchen.steam.render(c, kitchen.smokeAtlas?.image ?? puff, _atlasPaint);
     }
     for (var i = 0; i < run.bowls.length; i++) {
-      _bowl(c, layout, run, i);
+      _bowl(c, layout, g, run, i);
     }
     for (var i = 0; i < layout.garnishes.length; i++) {
-      final rect = layout.garnishSprites[i];
-      c.drawOval(rect, _paint..color = const Color(0xFF64422D));
-      c.drawOval(rect.deflate(5), _paint..color = const Color(0xFFF1DBB2));
-      art.item(c, 8 + i, rect.deflate(5));
+      c
+        ..drawOval(
+          layout.garnishSprites[i],
+          _paint..color = const Color(0xFF64422D),
+        )
+        ..drawOval(g.garnishInner[i], _paint..color = const Color(0xFFF1DBB2));
+      art.itemRect(
+        c,
+        MarketArt.garnishOf(Garnish.values[i]),
+        g.garnishInner[i],
+      );
     }
-    _serving(c, layout, run);
+    _serving(c, layout, g, run);
     if (kitchen.showHitBoxes) {
       _hitBoxes(c, layout);
     }
   }
 
-  void _drawCounterArt(Canvas canvas) =>
-      art.draw(canvas, "counter.webp", const Rect.fromLTWH(0, 421, 1280, 299));
-
-  /// Draws [paint] in design-canvas coordinates, cover-fitted to the screen.
-  void _artLayer(
-    Canvas c,
-    StageLayout? layout,
-    void Function(Canvas canvas) paint,
-  ) {
+  /// Saves the canvas and maps the 1280×720 design canvas onto the screen
+  /// with cover fit. Pair with `restore()`.
+  void _beginArt(Canvas c, StageLayout? layout) {
     final scale = layout?.scale ?? math.max(size.x / 1280, size.y / 720);
     final dx = layout?.origin.dx ?? (size.x - 1280 * scale) / 2;
     final dy = layout?.origin.dy ?? (size.y - 720 * scale) / 2;
@@ -351,10 +513,9 @@ class _Counter extends PositionComponent with TapCallbacks {
       ..save()
       ..translate(dx, dy)
       ..scale(scale);
-    paint(c);
-    c.restore();
   }
 
+  /// Debug overlay only (development builds); allocation here is fine.
   void _hitBoxes(Canvas c, StageLayout layout) {
     final line = Paint()
       ..style = PaintingStyle.stroke
@@ -371,8 +532,8 @@ class _Counter extends PositionComponent with TapCallbacks {
   }
 
   void _feedbackFor(KitchenRun run) {
-    final profile = kitchen.bloc.state.profile;
     if (_feedback != run.feedbackSequence) {
+      final profile = kitchen.bloc.state.profile;
       _feedback = run.feedbackSequence;
       _effectAt = run.now;
       kitchen.audio.play(
@@ -383,54 +544,57 @@ class _Counter extends PositionComponent with TapCallbacks {
     }
   }
 
-  void _halo(Canvas c, Rect rect) {
-    c.drawRRect(
-      RRect.fromRectAndRadius(rect.inflate(3), const Radius.circular(18)),
-      _stroke,
-    );
+  /// Draws a filled bar of [fraction] inside [bar] (unit rect + transform).
+  void _fill(Canvas c, Rect bar, double fraction, Paint paint) {
+    c
+      ..save()
+      ..translate(bar.left, bar.top)
+      ..scale(bar.width * fraction, bar.height)
+      ..drawRect(_unit, paint)
+      ..restore();
   }
 
-  void _pack(Canvas c, StageLayout layout, KitchenRun run) {
-    final image = art.images.fromCache("${run.shift.product.key}.png");
-    final rect = StageLayout.fit(layout.pack, image.width / image.height);
-    if (run.guide == Guide.pack) {
-      _halo(c, rect);
-    }
-    art.draw(c, "${run.shift.product.key}.png", rect);
-  }
-
-  void _bowl(Canvas c, StageLayout layout, KitchenRun run, int i) {
+  void _bowl(Canvas c, StageLayout layout, _Geometry g, KitchenRun run, int i) {
     final rect = layout.bowlSprites[i];
     if (run.guide == Guide.serve && run.bowls[i] != null) {
-      _halo(c, rect);
+      c.drawPath(g.bowlHalos[i], _stroke);
     }
-    art.dish(c, run.shift.product, run.bowls[i], rect);
+    art.dish(
+      c,
+      run.shift.product,
+      run.bowls[i],
+      rect.left,
+      rect.top,
+      rect.width,
+      rect.height,
+    );
     if (run.discardBowl != i) {
       return;
     }
-    final slot = layout.discards[i];
-    final at = slot.center;
-    final radius = math.min(slot.height, slot.width) / 2 - 4;
-    c.drawCircle(at, radius, _paint..color = const Color(0xFFD03F34));
-    final arm = radius * .38;
-    for (final sign in const [-1.0, 1.0]) {
-      c.drawLine(
-        at.translate(-arm, -arm * sign),
-        at.translate(arm, arm * sign),
-        _paint
-          ..color = const Color(0xFFFFECD0)
-          ..strokeWidth = 5,
-      );
-    }
+    final lines = g.discardLines[i];
+    c
+      ..drawCircle(
+        g.discardCenters[i],
+        g.discardRadius[i],
+        _paint..color = const Color(0xFFD03F34),
+      )
+      ..drawLine(lines[0], lines[1], _crossPaint)
+      ..drawLine(lines[2], lines[3], _crossPaint);
   }
 
-  void _pot(Canvas c, StageLayout layout, KitchenRun run, int index) {
+  void _pot(
+    Canvas c,
+    StageLayout layout,
+    _Geometry g,
+    KitchenRun run,
+    int index,
+  ) {
     final pot = run.pots[index];
     final rect = layout.potSprites[index];
-    if (run.guide == Guide.pot && pot.phase == PotPhase.ready) {
-      _halo(c, rect);
-    }
     final ready = pot.phase == PotPhase.ready;
+    if (run.guide == Guide.pot && ready) {
+      c.drawPath(g.potHalos[index], _stroke);
+    }
     final bob = ready && !kitchen.reducedMotion
         ? math.sin(run.now / 100) * 2
         : 0.0;
@@ -439,7 +603,7 @@ class _Counter extends PositionComponent with TapCallbacks {
       ..save()
       ..translate(0, bob);
     if (sprites == null) {
-      art.item(c, pot.phase.index, rect);
+      art.itemRect(c, pot.phase.index, rect);
     } else {
       sprites.drawBody(c, pot.phase, rect, _spritePaint);
       final boilFrame = kitchen.boil.boilFrame(index, run.now);
@@ -461,45 +625,27 @@ class _Counter extends PositionComponent with TapCallbacks {
     }
     final duration = ready ? 6000 : run.cookMs;
     final left = ((pot.deadline - run.now) / duration).clamp(0.0, 1.0);
-    final bar = Rect.fromLTWH(
-      rect.left + rect.width * .2,
-      rect.bottom - 4,
-      rect.width * .6,
-      8,
-    );
     c
-      ..drawRRect(
-        RRect.fromRectAndRadius(bar, const Radius.circular(4)),
-        _paint..color = const Color(0xFF302B27),
-      )
-      ..drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(
-            bar.left,
-            bar.top,
-            bar.width * (ready ? left : 1 - left),
-            bar.height,
-          ),
-          const Radius.circular(4),
-        ),
-        _paint
-          ..color = ready ? const Color(0xFFFFD366) : const Color(0xFF76D8BD),
-      );
+      ..drawPath(g.barPaths[index], _paint..color = const Color(0xFF302B27))
+      ..save()
+      ..clipPath(g.barPaths[index]);
+    _fill(
+      c,
+      g.bars[index],
+      ready ? left : 1 - left,
+      _paint..color = ready ? const Color(0xFFFFD366) : const Color(0xFF76D8BD),
+    );
+    c.restore();
     final puff = kitchen.puff;
     if (kitchen.reducedMotion && puff != null) {
       // Reduced motion: one still wisp keeps "this pot is hot" visible.
       final size = rect.width * .62;
-      c.drawImageRect(
-        puff,
-        _puffSource,
-        Rect.fromLTWH(
-          rect.center.dx - size / 2,
-          rect.top - size * .9,
-          size,
-          size,
-        ),
-        _wispPaint,
-      );
+      c
+        ..save()
+        ..translate(rect.left + rect.width / 2 - size / 2, rect.top - size * .9)
+        ..scale(size / SteamField.puffSize)
+        ..drawImageRect(puff, _puffSource, _puffSource, _wispPaint)
+        ..restore();
     }
   }
 
@@ -520,7 +666,7 @@ class _Counter extends PositionComponent with TapCallbacks {
   static const _unitOval = Rect.fromLTWH(-.5, -.5, 1, 1);
 
   /// Draws every customer, far ones first, behind the counter art.
-  void _customers(Canvas c, StageLayout layout, KitchenRun run) {
+  void _customers(Canvas c, StageLayout layout, _Geometry g, KitchenRun run) {
     final sprites = kitchen.customerSprites;
     if (sprites == null) {
       return;
@@ -528,11 +674,14 @@ class _Counter extends PositionComponent with TapCallbacks {
     final height = layout.customerHeight;
     final standFeetY = layout.counterTopY + height * StageLayout.waistShare;
     final streetFeetY = layout.counterTopY - 4 * layout.scale;
+    final actors = kitchen.cast.actors;
     // Two passes: customers on their way in or out (deeper) behind those
     // standing at the counter.
-    for (final deep in const [true, false]) {
-      for (final actor in kitchen.cast.actors) {
-        if (!actor.active) {
+    for (var pass = 0; pass < 2; pass++) {
+      final deep = pass == 0;
+      for (var i = 0; i < actors.length; i++) {
+        final actor = actors[i];
+        if (!actor.active || actor.slot >= g.guestX.length) {
           continue;
         }
         CustomerCast.pose(
@@ -547,8 +696,7 @@ class _Counter extends PositionComponent with TapCallbacks {
         }
         final scale = 1 - .2 * _pose.depth;
         final h = height * scale * _pose.breath;
-        final feetX =
-            layout.guestX(actor.slot, run.shift.slots) + _pose.x * height;
+        final feetX = g.guestX[actor.slot] + _pose.x * height;
         final feetY = standFeetY + (streetFeetY - standFeetY) * _pose.depth;
         if (feetY < layout.counterTopY) {
           // Feet visible on the street: a soft contact shadow.
@@ -591,43 +739,49 @@ class _Counter extends PositionComponent with TapCallbacks {
     }
   }
 
-  void _ticket(Canvas c, StageLayout layout, KitchenRun run, Customer guest) {
+  void _ticket(Canvas c, _Geometry g, KitchenRun run, Customer guest) {
     // Hide the order until its customer starts to come in, so it never
     // floats beside the previous customer who is still reacting.
-    for (final actor in kitchen.cast.actors) {
+    final actors = kitchen.cast.actors;
+    for (var i = 0; i < actors.length; i++) {
+      final actor = actors[i];
       if (actor.active && actor.id == guest.id && run.now < actor.enterAt) {
         return;
       }
     }
-    final k = layout.ticketScale;
-    final origin = layout.ticketOrigin(guest.slot, run.shift.slots);
-    final ticket = Rect.fromLTWH(
-      origin.dx,
-      origin.dy,
-      layout.ticketWidth,
-      layout.ticketHeight,
-    );
-    c.drawRRect(
-      RRect.fromRectAndRadius(ticket, Radius.circular(20 * k)),
-      _paint..color = const Color(0xFFFFECC9),
-    );
+    if (guest.slot >= g.ticketLeft.length) {
+      return;
+    }
+    final k = g.layout.ticketScale;
+    final left = g.ticketLeft[guest.slot];
+    final top = g.ticketTop[guest.slot];
+    c
+      ..save()
+      ..translate(left, top)
+      ..drawPath(g.ticket, _paint..color = const Color(0xFFFFECC9))
+      ..restore();
     art.dish(
       c,
       run.shift.product,
-      {},
-      Rect.fromLTWH(ticket.left + 6 * k, ticket.top + 8 * k, 76 * k, 61 * k),
+      _noToppings,
+      left + 6 * k,
+      top + 8 * k,
+      76 * k,
+      61 * k,
     );
     var j = 0;
-    for (final topping in guest.toppings) {
+    const kinds = Garnish.values;
+    for (var i = 0; i < kinds.length; i++) {
+      if (!guest.toppings.contains(kinds[i])) {
+        continue;
+      }
       art.item(
         c,
-        8 + topping.index,
-        Rect.fromLTWH(
-          ticket.left + (77 + j * 31) * k,
-          ticket.top + 13 * k,
-          36 * k,
-          38 * k,
-        ),
+        MarketArt.garnishOf(kinds[i]),
+        left + (77 + j * 31) * k,
+        top + 13 * k,
+        36 * k,
+        38 * k,
       );
       j++;
     }
@@ -635,26 +789,47 @@ class _Counter extends PositionComponent with TapCallbacks {
       0.0,
       1.0,
     );
-    final bar = Rect.fromLTWH(
-      ticket.left + 19 * k,
-      ticket.bottom + 4,
-      110 * k,
+    final barLeft = left + 19 * k;
+    final barTop = top + g.layout.ticketHeight + 4;
+    final barWidth = 110 * k;
+    _box(
+      c,
+      barLeft,
+      barTop,
+      barWidth,
       7,
+      _paint..color = const Color(0xFF42362D),
     );
+    _box(
+      c,
+      barLeft,
+      barTop,
+      barWidth * (run.guide == Guide.done ? ratio : 1),
+      7,
+      _paint
+        ..color = ratio < .3
+            ? const Color(0xFFFF935B)
+            : const Color(0xFF70E2C2),
+    );
+  }
+
+  /// An empty topping set for order tickets (the dish without garnish).
+  static const Set<Garnish> _noToppings = {};
+
+  void _box(
+    Canvas c,
+    double left,
+    double top,
+    double width,
+    double height,
+    Paint paint,
+  ) {
     c
-      ..drawRect(bar, _paint..color = const Color(0xFF42362D))
-      ..drawRect(
-        Rect.fromLTWH(
-          bar.left,
-          bar.top,
-          bar.width * (run.guide == Guide.done ? ratio : 1),
-          bar.height,
-        ),
-        _paint
-          ..color = ratio < .3
-              ? const Color(0xFFFF935B)
-              : const Color(0xFF70E2C2),
-      );
+      ..save()
+      ..translate(left, top)
+      ..scale(width, height)
+      ..drawRect(_unit, paint)
+      ..restore();
   }
 
   void _lanterns(Canvas c, KitchenRun run) {
@@ -666,14 +841,10 @@ class _Counter extends PositionComponent with TapCallbacks {
         ..strokeWidth = 4,
     );
     for (var i = 0; i < 5; i++) {
-      final at = Offset(492 + i * 74.0, 96);
       if (i < run.chain) {
-        art.item(c, 11, Rect.fromCenter(center: at, width: 37, height: 48));
+        art.itemRect(c, MarketArt.lantern, _litLanterns[i]);
       } else {
-        c.drawOval(
-          Rect.fromCenter(center: at, width: 19, height: 27),
-          _paint..color = const Color(0xFF744732),
-        );
+        c.drawOval(_unlitLanterns[i], _paint..color = const Color(0xFF744732));
       }
     }
   }
@@ -681,32 +852,29 @@ class _Counter extends PositionComponent with TapCallbacks {
   bool _served(KitchenRun run) =>
       run.cue == KitchenCue.served || run.cue == KitchenCue.streak;
 
-  void _serving(Canvas c, StageLayout layout, KitchenRun run) {
+  void _serving(Canvas c, StageLayout layout, _Geometry g, KitchenRun run) {
     final age = run.now - _effectAt;
+    final slot = run.servedSlot;
+    final bowl = run.servedBowl;
     if (kitchen.reducedMotion ||
         !_served(run) ||
         age > 420 ||
-        run.servedSlot == null) {
+        slot == null ||
+        bowl == null ||
+        slot >= g.guestX.length) {
       return;
     }
     final t = (age / 420).clamp(0.0, 1.0);
-    final from = layout.bowlSprites[run.servedBowl!];
-    final end = Offset(
-      layout.guestX(run.servedSlot!, run.shift.slots),
-      layout.counterTopY - 60 * layout.scale,
-    );
-    final point =
-        Offset.lerp(from.center, end, t)! -
-        Offset(0, math.sin(t * math.pi) * 55 * layout.scale);
-    art.dish(
-      c,
-      run.shift.product,
-      {},
-      Rect.fromCenter(
-        center: point,
-        width: from.width * (1 - t * .3),
-        height: from.height * (1 - t * .3),
-      ),
-    );
+    final from = layout.bowlSprites[bowl];
+    final fromX = from.left + from.width / 2;
+    final fromY = from.top + from.height / 2;
+    final endX = g.guestX[slot];
+    final endY = layout.counterTopY - 60 * layout.scale;
+    final x = fromX + (endX - fromX) * t;
+    final y =
+        fromY + (endY - fromY) * t - math.sin(t * math.pi) * 55 * layout.scale;
+    final w = from.width * (1 - t * .3);
+    final h = from.height * (1 - t * .3);
+    art.dish(c, run.shift.product, _noToppings, x - w / 2, y - h / 2, w, h);
   }
 }

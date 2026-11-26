@@ -26,7 +26,7 @@ analyze:
 	flutter analyze
 
 test:
-	flutter test
+	flutter test --enable-vmservice
 
 test-packages:
 	cd packages/app_network && flutter test --no-pub
@@ -34,7 +34,7 @@ test-packages:
 	cd packages/yumyum_kitchen && flutter test --no-pub
 
 coverage:
-	flutter test --coverage
+	flutter test --enable-vmservice --coverage
 	cd packages/app_network && flutter test --no-pub --coverage
 	cd packages/app_ui_kit && flutter test --no-pub --coverage
 	cd packages/yumyum_kitchen && flutter test --no-pub --coverage

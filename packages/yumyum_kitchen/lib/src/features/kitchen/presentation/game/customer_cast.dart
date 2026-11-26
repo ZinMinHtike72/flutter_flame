@@ -107,7 +107,8 @@ class CustomerCast {
   void sync(KitchenRun run, {required bool reducedMotion}) {
     if (!identical(run, _run)) {
       _run = run;
-      for (final actor in actors) {
+      for (var i = 0; i < actors.length; i++) {
+        final actor = actors[i];
         actor.id = -1;
       }
     }
@@ -142,7 +143,8 @@ class CustomerCast {
       }
     }
     final linger = exitMs(reducedMotion: reducedMotion);
-    for (final actor in actors) {
+    for (var i = 0; i < actors.length; i++) {
+      final actor = actors[i];
       final left = actor.leftAt;
       if (actor.active && left != null && now - left >= linger) {
         actor.id = -1;
@@ -153,7 +155,8 @@ class CustomerCast {
   /// When the last customer to leave [slot] stops reacting there.
   int _slotClearAt(int slot) {
     var clear = 0;
-    for (final actor in actors) {
+    for (var i = 0; i < actors.length; i++) {
+      final actor = actors[i];
       final left = actor.leftAt;
       if (actor.active && actor.slot == slot && left != null) {
         clear = math.max(clear, left + reactMs);
@@ -163,7 +166,8 @@ class CustomerCast {
   }
 
   CustomerActor? _waitingIn(int slot) {
-    for (final actor in actors) {
+    for (var i = 0; i < actors.length; i++) {
+      final actor = actors[i];
       if (actor.active && actor.slot == slot && actor.leftAt == null) {
         return actor;
       }
@@ -174,7 +178,8 @@ class CustomerCast {
   /// A free actor, or the one that has been leaving longest.
   CustomerActor? _free(int now, bool reducedMotion) {
     CustomerActor? oldest;
-    for (final actor in actors) {
+    for (var i = 0; i < actors.length; i++) {
+      final actor = actors[i];
       if (!actor.active) {
         return actor;
       }

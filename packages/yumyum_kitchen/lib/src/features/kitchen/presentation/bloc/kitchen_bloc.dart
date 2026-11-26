@@ -44,16 +44,16 @@ class KitchenBloc extends Bloc<KitchenEvent, KitchenState> {
         state.page != KitchenPage.live) {
       return;
     }
-    final previous = (
-      current.secondsLeft,
-      current.guide,
-      current.feedbackSequence,
-    );
+    // Plain locals, not a record: this runs every rules step.
+    final seconds = current.secondsLeft;
+    final guide = current.guide;
+    final feedback = current.feedbackSequence;
     current.advance(ms);
     if (current.ended) {
       add(const KitchenAction(ActionType.settle));
-    } else if (previous !=
-        (current.secondsLeft, current.guide, current.feedbackSequence)) {
+    } else if (seconds != current.secondsLeft ||
+        guide != current.guide ||
+        feedback != current.feedbackSequence) {
       add(const KitchenUpdated());
     }
   }

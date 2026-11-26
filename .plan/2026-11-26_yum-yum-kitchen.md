@@ -77,7 +77,7 @@ GitHub issue numbers are in brackets.
 - [x] status: done - Enforce 48 px non-overlapping hit areas with a debug overlay and test [#23] — `test/app/hit_area_test.dart` (5 sizes), `SHOW_HIT_BOXES` dart-define, `hit_boxes_notched_phone` golden
 - [x] status: done - Block game input behind overlay scrims [#24] — `ScrimGuard`, `test/app/overlay_scrim_test.dart`
 - [x] status: done - Fixed 30 Hz rules step and 30 fps render cap [#25] — `frame_timing.dart` (`FrameThrottle`, `FixedStepClock`), engine paused and stepped from vsync; `frame_timing_test.dart`, `test/app/frame_cap_test.dart`
-- [ ] status: pending - Preload, pool and remove per-frame allocations [#26]
+- [x] status: done - Preload, pool and remove per-frame allocations [#26] — baseline ≈ 118 objects/frame (44 Rect, 26 closures, 11 set iterators, 9 Offset, 7 RRect + 7 Float32List, …) → 0 from game code (allocation tracing, 300 steady shift-12 frames); geometry cached per layout, sprites drawn through transforms, index loops in the rules step, Flame's unused camera subtree skipped; clock gated on `preloaded`; `test/app/performance_test.dart`
 - [x] status: done - Quality tiers chosen by a startup benchmark [#27] — `quality_benchmark.dart` (high ≤ 250 µs, medium ≤ 700 µs per frame), saved `qualityTier`, Graphics toggle in pause; `quality_test.dart`
 - [ ] status: pending - Implement pot and bowl transitions [#4]
 - [ ] status: pending - Implement order matching and patience [#5]
