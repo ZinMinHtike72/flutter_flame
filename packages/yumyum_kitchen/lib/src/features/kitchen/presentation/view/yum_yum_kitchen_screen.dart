@@ -48,11 +48,15 @@ class YumYumKitchenScreen extends StatelessWidget {
         : const Locale("en"),
     delegates: KitchenStrings.localizationsDelegates,
     child: BlocProvider(
-      create: (_) => KitchenBloc(
-        LocalProgressRepository(),
-        (shift, profile) =>
-            makeKitchenRun(shift, profile, const Uuid().v4(), Random()),
-      )..add(const KitchenStarted()),
+      create: (context) {
+        // A host or test may provide a seeded Random for reproducible shifts.
+        final random = context.read<Random?>() ?? Random();
+        return KitchenBloc(
+          LocalProgressRepository(),
+          (shift, profile) =>
+              makeKitchenRun(shift, profile, const Uuid().v4(), random),
+        )..add(const KitchenStarted());
+      },
       child: RepositoryProvider(
         create: (context) => _Session(
           context.read<KitchenBloc>(),

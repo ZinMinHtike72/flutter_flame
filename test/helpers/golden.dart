@@ -1,4 +1,5 @@
 import "dart:io";
+import "dart:math";
 
 import "package:flutter/services.dart";
 import "package:flutter/widgets.dart";
@@ -82,7 +83,11 @@ class SilentTestAudio extends KitchenAudio {
   Future<void> preload() async {}
 }
 
-Widget withTestAudio(Widget child) => RepositoryProvider<KitchenAudio>(
-  create: (_) => SilentTestAudio(),
+/// Silent audio and a seeded [Random] so every shift renders the same way.
+Widget withTestAudio(Widget child) => MultiRepositoryProvider(
+  providers: [
+    RepositoryProvider<KitchenAudio>(create: (_) => SilentTestAudio()),
+    RepositoryProvider<Random>(create: (_) => Random(7)),
+  ],
   child: child,
 );
