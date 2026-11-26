@@ -12,6 +12,7 @@ import "package:yumyum_kitchen/src/features/kitchen/presentation/game/frame_timi
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/kitchen_audio.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/market_art.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/stage_layout.dart";
+import "package:yumyum_kitchen/src/features/kitchen/presentation/game/steam_field.dart";
 
 /// Full-screen kitchen: the 1280×720 art fills the screen with cover fit and
 /// the interactive counter is laid out inside the safe stage.
@@ -35,6 +36,16 @@ class YumYumKitchenGame extends FlameGame {
   final _throttle = FrameThrottle();
   final _rulesClock = FixedStepClock();
   bool _driving = false;
+
+  /// Pooled steam above the pots (two pots at most).
+  final steam = SteamField(emitters: 2);
+
+  /// Particle budget; set from the startup benchmark (#27).
+  SteamQuality quality = SteamQuality.medium;
+
+  /// Soft puff sprite baked at load.
+  Image? puff;
+  KitchenRun? _steamRun;
 
   /// Engine steps run so far (update + render), for frame-cap tests.
   int engineSteps = 0;
@@ -72,6 +83,7 @@ class YumYumKitchenGame extends FlameGame {
   Future<void> onLoad() async {
     await super.onLoad();
     await Future.wait([art.load(), audio.preload()]);
+    puff = await SteamField.bakePuff();
     add(_Counter(this));
   }
 
@@ -105,12 +117,27 @@ class YumYumKitchenGame extends FlameGame {
     super.update(dt);
     engineSteps++;
     _rulesClock.advance(dt * 1000, bloc.tick);
+    _updateSteam(dt);
+  }
+
+  void _updateSteam(double dt) {
+    final run = bloc.run;
+    final layout = this.layout;
+    if (!identical(run, _steamRun) || reducedMotion) {
+      _steamRun = run;
+      steam.clear();
+    }
+    if (run == null || layout == null || reducedMotion || run.paused) {
+      return;
+    }
+    steam.update(dt, run.pots, layout.potSprites, quality, layout.scale);
   }
 
   void tap(CounterTarget target) => bloc.tap(target.station, target.index);
 
   @override
   void onDispose() {
+    puff?.dispose();
     unawaited(audio.dispose());
     art.images.clearCache();
     super.onDispose();
@@ -121,6 +148,18 @@ class _Counter extends PositionComponent with TapCallbacks {
   _Counter(this.kitchen);
   final YumYumKitchenGame kitchen;
   final _paint = Paint();
+  final _atlasPaint = Paint()..filterQuality = FilterQuality.low;
+  final _wispPaint = Paint()
+    ..colorFilter = const ColorFilter.mode(
+      Color(0xE6FFF6E6),
+      BlendMode.modulate,
+    );
+  static const _puffSource = Rect.fromLTWH(
+    0,
+    0,
+    SteamField.puffSize,
+    SteamField.puffSize,
+  );
   final _stroke = Paint()
     ..style = PaintingStyle.stroke
     ..strokeWidth = 5
@@ -191,11 +230,15 @@ class _Counter extends PositionComponent with TapCallbacks {
     for (var i = 0; i < run.pots.length; i++) {
       _pot(c, layout, run, i);
     }
+    final puff = kitchen.puff;
+    if (puff != null && !kitchen.reducedMotion) {
+      kitchen.steam.render(c, puff, _atlasPaint);
+    }
     for (var i = 0; i < run.bowls.length; i++) {
       _bowl(c, layout, run, i);
     }
     for (var i = 0; i < layout.garnishes.length; i++) {
-      final rect = StageLayout.fit(layout.garnishes[i], 1.4);
+      final rect = layout.garnishSprites[i];
       c.drawOval(rect, _paint..color = const Color(0xFF64422D));
       c.drawOval(rect.deflate(5), _paint..color = const Color(0xFFF1DBB2));
       art.item(c, 8 + i, rect.deflate(5));
@@ -276,7 +319,7 @@ class _Counter extends PositionComponent with TapCallbacks {
   }
 
   void _bowl(Canvas c, StageLayout layout, KitchenRun run, int i) {
-    final rect = StageLayout.fit(layout.bowls[i], 1.25);
+    final rect = layout.bowlSprites[i];
     if (run.guide == Guide.serve && run.bowls[i] != null) {
       _halo(c, rect);
     }
@@ -302,7 +345,7 @@ class _Counter extends PositionComponent with TapCallbacks {
 
   void _pot(Canvas c, StageLayout layout, KitchenRun run, int index) {
     final pot = run.pots[index];
-    final rect = StageLayout.fit(layout.pots[index], 1.1, pad: 8);
+    final rect = layout.potSprites[index];
     if (run.guide == Guide.pot && pot.phase == PotPhase.ready) {
       _halo(c, rect);
     }
@@ -344,19 +387,20 @@ class _Counter extends PositionComponent with TapCallbacks {
         _paint
           ..color = ready ? const Color(0xFFFFD366) : const Color(0xFF76D8BD),
       );
-    if (kitchen.reducedMotion) {
-      return;
-    }
-    final unit = rect.width / 178;
-    for (var i = 0; i < 3; i++) {
-      final t = ((run.now + i * 350) % 1050) / 1050;
-      c.drawCircle(
-        Offset(
-          rect.center.dx + ((i - 1) * 16 + math.sin(t * 6) * 6) * unit,
-          rect.top + (35 - t * 34) * unit,
+    final puff = kitchen.puff;
+    if (kitchen.reducedMotion && puff != null) {
+      // Reduced motion: one still wisp keeps "this pot is hot" visible.
+      final size = rect.width * .62;
+      c.drawImageRect(
+        puff,
+        _puffSource,
+        Rect.fromLTWH(
+          rect.center.dx - size / 2,
+          rect.top - size * .9,
+          size,
+          size,
         ),
-        (4 + t * 5) * unit,
-        _paint..color = Color.fromRGBO(255, 241, 205, (1 - t) * .45),
+        _wispPaint,
       );
     }
   }
@@ -510,7 +554,7 @@ class _Counter extends PositionComponent with TapCallbacks {
       return;
     }
     final t = (age / 420).clamp(0.0, 1.0);
-    final from = StageLayout.fit(layout.bowls[run.servedBowl!], 1.25);
+    final from = layout.bowlSprites[run.servedBowl!];
     final end = Offset(
       layout.guestX(run.servedSlot!, run.shift.slots),
       layout.counterTopY - 60 * layout.scale,

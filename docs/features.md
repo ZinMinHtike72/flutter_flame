@@ -14,6 +14,7 @@ Last updated: 2026-11-26
 - **Hit areas**: every target is ≥ 48×48, inside the safe stage and apart from every other (HUD pause included); `test/app/hit_area_test.dart` enforces it on five device sizes.
 - **Overlays**: every page except the live shift sits on an opaque scrim plus `ScrimGuard`; no counter point reaches the game while pause, receipt or shop is open (`test/app/overlay_scrim_test.dart`).
 - **Frame rate**: Flame's own loop stays paused; a vsync callback steps the engine through `FrameThrottle` at 30 fps (60/90/120 Hz displays), and `FixedStepClock` advances the rules in exact 1000/30 ms steps (max 5 catch-up steps).
+- **Steam**: pooled steam (ready/cooking) and smoke (burnt) puffs per pot in fixed typed arrays, drawn with one `drawRawAtlas`; budget per pot 4/10/18 by quality tier; reduced motion shows one static wisp.
 - **Debug**: `YumYumKitchenScreen(showHitBoxes: true)` paints the safe stage, zones and hit boxes; the standalone app enables it with `--flavor development --dart-define=SHOW_HIT_BOXES=true`.
 - Rules, campaign and progress are pure Dart in `domain/`; progress is saved locally and settled once per run.
 

@@ -87,7 +87,7 @@ GitHub issue numbers are in brackets.
 - [ ] status: pending - Produce food and appliance sprites [#9]
 - [ ] status: pending - Produce customer poses [#10]
 - [ ] status: pending - Pot and lid sprite set [#28]
-- [ ] status: pending - Steam particle system [#29]
+- [x] status: done - Steam particle system [#29] — `steam_field.dart` (typed-array pool, one `drawRawAtlas`, tier budgets), static wisp under reduced motion; `steam_field_test.dart`, `steam_motion` / `steam_reduced_motion` goldens
 - [ ] status: pending - Boil animation and audio sync [#30]
 - [ ] status: pending - Integrate animation, audio, and reduced motion [#11]
 - [ ] status: pending - Motion design pass: transitions, micro-interactions, haptics, 100 ms response [#31]

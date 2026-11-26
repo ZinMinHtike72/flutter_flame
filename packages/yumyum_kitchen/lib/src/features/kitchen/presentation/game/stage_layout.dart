@@ -29,7 +29,9 @@ class StageLayout {
     required this.bowls,
     required this.discards,
     required this.garnishes,
-  });
+  }) : potSprites = [for (final r in pots) fit(r, potAspect, pad: 8)],
+       bowlSprites = [for (final r in bowls) fit(r, bowlAspect)],
+       garnishSprites = [for (final r in garnishes) fit(r, garnishAspect)];
 
   /// Lays out a stage for [screen] with system [insets] (left, top, right,
   /// bottom view padding).
@@ -145,6 +147,15 @@ class StageLayout {
   final List<Rect> bowls;
   final List<Rect> discards;
   final List<Rect> garnishes;
+
+  /// Sprite rects inside each slot, computed once so render never allocates.
+  final List<Rect> potSprites;
+  final List<Rect> bowlSprites;
+  final List<Rect> garnishSprites;
+
+  static const potAspect = 1.1;
+  static const bowlAspect = 1.25;
+  static const garnishAspect = 1.4;
 
   /// Screen y of the counter's top edge.
   double get counterTopY => origin.dy + counterTop * scale;
