@@ -208,4 +208,16 @@ class KitchenStringsEn extends KitchenStrings {
 
   @override
   String get preview => 'Preview';
+
+  @override
+  String get quality => 'Graphics';
+
+  @override
+  String get qualityLow => 'Low';
+
+  @override
+  String get qualityMedium => 'Medium';
+
+  @override
+  String get qualityHigh => 'High';
 }

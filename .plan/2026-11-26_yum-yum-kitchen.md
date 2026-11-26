@@ -78,7 +78,7 @@ GitHub issue numbers are in brackets.
 - [x] status: done - Block game input behind overlay scrims [#24] — `ScrimGuard`, `test/app/overlay_scrim_test.dart`
 - [x] status: done - Fixed 30 Hz rules step and 30 fps render cap [#25] — `frame_timing.dart` (`FrameThrottle`, `FixedStepClock`), engine paused and stepped from vsync; `frame_timing_test.dart`, `test/app/frame_cap_test.dart`
 - [ ] status: pending - Preload, pool and remove per-frame allocations [#26]
-- [ ] status: pending - Quality tiers chosen by a startup benchmark [#27]
+- [x] status: done - Quality tiers chosen by a startup benchmark [#27] — `quality_benchmark.dart` (high ≤ 250 µs, medium ≤ 700 µs per frame), saved `qualityTier`, Graphics toggle in pause; `quality_test.dart`
 - [ ] status: pending - Implement pot and bowl transitions [#4]
 - [ ] status: pending - Implement order matching and patience [#5]
 - [ ] status: pending - Wire one playable shift from start to result [#6]

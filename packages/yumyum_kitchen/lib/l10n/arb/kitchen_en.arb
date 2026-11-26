@@ -66,5 +66,9 @@
   "tutorial": "First order",
   "complete": "Back to tickets",
   "bestStreak": "Best streak",
-  "preview": "Preview"
+  "preview": "Preview",
+  "quality": "Graphics",
+  "qualityLow": "Low",
+  "qualityMedium": "Medium",
+  "qualityHigh": "High"
 }

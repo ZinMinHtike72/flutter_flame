@@ -1,3 +1,5 @@
+import "dart:convert";
+
 import "package:flame/game.dart";
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
@@ -44,7 +46,20 @@ void main() {
     testWidgets("landscape kitchen screen flow ${mode.name}", (tester) async {
       await getIt.reset();
       configureDependencies(flavor: AppFlavor.development);
-      SharedPreferences.setMockInitialValues({});
+      // A fresh save with the graphics tier pinned to medium, so the
+      // machine-dependent startup benchmark cannot change any golden.
+      SharedPreferences.setMockInitialValues({
+        "yumyum_kitchen.progress.v1": jsonEncode({
+          "wallet": 0,
+          "unlocked": 1,
+          "best": <String, int>{},
+          "settled": <String>[],
+          "upgrades": <String>[],
+          "sound": true,
+          "haptics": true,
+          "quality": 1,
+        }),
+      });
       useGoldenDevice(
         tester,
         size: mode.size,
@@ -104,6 +119,10 @@ void main() {
       await snap("live");
       await action(ActionType.pause, PauseMenu);
       await snap("pause");
+      await tester.tap(find.byIcon(Icons.auto_awesome_rounded));
+      await settleFrames(tester);
+      expect(bloc.state.profile.qualityTier, 2);
+      expect(game.quality.index, 2);
       await action(ActionType.resume, ShiftHud);
       bloc.tick(45000);
       await waitForWidget(tester, find.byType(ShiftReceipt));

@@ -11,6 +11,7 @@ import "package:yumyum_kitchen/src/features/kitchen/presentation/bloc/kitchen_bl
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/frame_timing.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/kitchen_audio.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/market_art.dart";
+import "package:yumyum_kitchen/src/features/kitchen/presentation/game/quality_benchmark.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/stage_layout.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/steam_field.dart";
 
@@ -40,8 +41,14 @@ class YumYumKitchenGame extends FlameGame {
   /// Pooled steam above the pots (two pots at most).
   final steam = SteamField(emitters: 2);
 
-  /// Particle budget; set from the startup benchmark (#27).
-  SteamQuality quality = SteamQuality.medium;
+  /// Tier picked by this device's startup benchmark (medium until it runs).
+  SteamQuality benchmarkTier = SteamQuality.medium;
+
+  /// Particle budget: the saved tier, else the benchmark's pick.
+  SteamQuality get quality {
+    final saved = bloc.state.profile.qualityTier;
+    return saved == null ? benchmarkTier : SteamQuality.values[saved];
+  }
 
   /// Soft puff sprite baked at load.
   Image? puff;
@@ -83,7 +90,11 @@ class YumYumKitchenGame extends FlameGame {
   Future<void> onLoad() async {
     await super.onLoad();
     await Future.wait([art.load(), audio.preload()]);
-    puff = await SteamField.bakePuff();
+    final puff = this.puff = await SteamField.bakePuff();
+    if (bloc.state.profile.qualityTier == null) {
+      benchmarkTier = QualityBenchmark.tierFor(QualityBenchmark.measure(puff));
+      bloc.add(KitchenAction(ActionType.benchmark, benchmarkTier.index));
+    }
     add(_Counter(this));
   }
 

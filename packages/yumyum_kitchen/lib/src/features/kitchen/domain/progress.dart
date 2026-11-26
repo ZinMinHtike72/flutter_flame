@@ -10,6 +10,7 @@ class KitchenProgress {
     this.settled = const {},
     this.sound = true,
     this.haptics = true,
+    this.qualityTier,
   });
   final int wallet;
   final int unlocked;
@@ -18,6 +19,14 @@ class KitchenProgress {
   final Set<String> settled;
   final bool sound;
   final bool haptics;
+
+  /// Graphics quality tier 0 (low) to 2 (high); null until the startup
+  /// benchmark or the player picks one.
+  final int? qualityTier;
+
+  /// Number of quality tiers.
+  static const qualityTiers = 3;
+
   KitchenProgress settle(KitchenRun run) {
     if (!run.ended || settled.contains(run.id)) {
       return this;
@@ -36,6 +45,7 @@ class KitchenProgress {
       settled: {...settled, run.id},
       sound: sound,
       haptics: haptics,
+      qualityTier: qualityTier,
     );
   }
 
@@ -51,10 +61,12 @@ class KitchenProgress {
       settled: settled,
       sound: sound,
       haptics: haptics,
+      qualityTier: qualityTier,
     );
   }
 
-  KitchenProgress preferences({bool? soundOn, bool? hapticsOn}) =>
+  /// Changes settings. A [tier] outside 0..2 is ignored.
+  KitchenProgress preferences({bool? soundOn, bool? hapticsOn, int? tier}) =>
       KitchenProgress(
         wallet: wallet,
         unlocked: unlocked,
@@ -63,6 +75,9 @@ class KitchenProgress {
         settled: settled,
         sound: soundOn ?? sound,
         haptics: hapticsOn ?? haptics,
+        qualityTier: tier != null && tier >= 0 && tier < qualityTiers
+            ? tier
+            : qualityTier,
       );
 }
 

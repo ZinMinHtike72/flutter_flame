@@ -25,6 +25,8 @@ enum ActionType {
   buy,
   sound,
   haptics,
+  quality,
+  benchmark,
   back,
   recover,
 }

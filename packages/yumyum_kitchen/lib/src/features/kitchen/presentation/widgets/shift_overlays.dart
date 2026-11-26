@@ -2,6 +2,7 @@ import "package:flutter/material.dart" show Icons;
 import "package:flutter/widgets.dart";
 import "package:yumyum_kitchen/src/features/kitchen/domain/campaign.dart";
 import "package:yumyum_kitchen/src/features/kitchen/domain/kitchen_run.dart";
+import "package:yumyum_kitchen/src/features/kitchen/domain/progress.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/bloc/kitchen_bloc.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/widgets/market_style.dart";
 
@@ -115,6 +116,7 @@ class PauseMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = context.kitchen;
+    final tier = state.profile.qualityTier ?? 1;
     return ColoredBox(
       color: const Color(0xDA112A2B),
       child: SafeStage(
@@ -159,6 +161,14 @@ class PauseMenu extends StatelessWidget {
                       "${s.vibration} · ${state.profile.haptics ? s.on : s.off}",
                       () => context.act(ActionType.haptics),
                       icon: Icons.vibration_rounded,
+                    ),
+                    MarketButton(
+                      "${s.quality} · ${[s.qualityLow, s.qualityMedium, s.qualityHigh][tier]}",
+                      () => context.act(
+                        ActionType.quality,
+                        (tier + 1) % KitchenProgress.qualityTiers,
+                      ),
+                      icon: Icons.auto_awesome_rounded,
                     ),
                   ],
                 ),

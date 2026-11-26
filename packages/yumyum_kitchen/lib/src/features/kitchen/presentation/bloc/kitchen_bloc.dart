@@ -155,6 +155,17 @@ class KitchenBloc extends Bloc<KitchenEvent, KitchenState> {
           (p) => p.preferences(hapticsOn: !p.haptics),
         );
         emit(state.copyWith(profile: profile));
+      case ActionType.quality:
+        final profile = await repository.update(
+          (p) => p.preferences(tier: index),
+        );
+        emit(state.copyWith(profile: profile));
+      case ActionType.benchmark:
+        // The benchmark only fills in a tier nobody has chosen yet.
+        final profile = await repository.update(
+          (p) => p.qualityTier == null ? p.preferences(tier: index) : p,
+        );
+        emit(state.copyWith(profile: profile));
       case ActionType.back:
         final next = switch (state.page) {
           KitchenPage.shop => _shopReturn,

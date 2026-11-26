@@ -33,6 +33,7 @@ void main() {
             "upgrades": ["extraPot"],
             "sound": false,
             "haptics": false,
+            "quality": 1,
           }),
         });
         useGoldenDevice(tester, padding: notchedPadding);

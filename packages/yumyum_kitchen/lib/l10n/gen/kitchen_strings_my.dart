@@ -208,4 +208,16 @@ class KitchenStringsMy extends KitchenStrings {
 
   @override
   String get preview => 'အစမ်းမြင်ကွင်း';
+
+  @override
+  String get quality => 'ဂရပ်ဖစ်';
+
+  @override
+  String get qualityLow => 'နိမ့်';
+
+  @override
+  String get qualityMedium => 'အလယ်အလတ်';
+
+  @override
+  String get qualityHigh => 'မြင့်';
 }

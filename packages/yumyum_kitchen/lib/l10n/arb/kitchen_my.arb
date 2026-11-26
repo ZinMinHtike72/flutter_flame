@@ -66,5 +66,9 @@
   "tutorial": "ပထမဆုံးအော်ဒါ",
   "complete": "လက်မှတ်များသို့",
   "bestStreak": "အကောင်းဆုံး ဆက်တိုက်အကြိမ်",
-  "preview": "အစမ်းမြင်ကွင်း"
+  "preview": "အစမ်းမြင်ကွင်း",
+  "quality": "ဂရပ်ဖစ်",
+  "qualityLow": "နိမ့်",
+  "qualityMedium": "အလယ်အလတ်",
+  "qualityHigh": "မြင့်"
 }

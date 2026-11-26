@@ -42,6 +42,12 @@ class LocalProgressRepository implements ProgressRepository {
         upgrades: purchases.cast<String>().map(Upgrade.values.byName).toSet(),
         sound: sound,
         haptics: haptics,
+        qualityTier: switch (data["quality"]) {
+          final int tier
+              when tier >= 0 && tier < KitchenProgress.qualityTiers =>
+            tier,
+          _ => null,
+        },
       );
     }
     throw const FormatException("Invalid kitchen save");
@@ -66,6 +72,7 @@ class LocalProgressRepository implements ProgressRepository {
         "upgrades": next.upgrades.map((u) => u.name).toList(),
         "sound": next.sound,
         "haptics": next.haptics,
+        if (next.qualityTier != null) "quality": next.qualityTier,
       });
       if (!await prefs.setString(_key, encoded)) {
         throw Exception("Could not persist kitchen progress");
