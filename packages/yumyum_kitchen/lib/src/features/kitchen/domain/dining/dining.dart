@@ -184,6 +184,9 @@ class Dining {
   int lost = 0;
 
   int get waitingAtDoor => _doorCount;
+
+  /// The [i]th guest waiting at the door (0 = first in line).
+  Guest doorGuest(int i) => _door[(_doorHead + i) % doorCapacity]!;
   int get queuedTasks => _queueCount;
 
   /// A guest walks in at [now]; false when the doorway is full (they turn

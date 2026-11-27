@@ -264,15 +264,15 @@ class _Content extends StatelessWidget {
                           ),
                           KitchenPage.tickets => MarketTickets(state),
                           KitchenPage.brief => MarketBrief(state),
-                          KitchenPage.live => ShiftHud(game.bloc.run!),
+                          KitchenPage.live => ShiftHud(game.bloc.current!),
                           KitchenPage.pause => PauseMenu(
                             state,
                             exit: () => unawaited(_exit(context)),
                           ),
                           KitchenPage.receipt => ShiftReceipt(
-                            game.bloc.run!,
+                            game.bloc.current!,
                             openProduct: () => unawaited(
-                              _product(context, game.bloc.run!.shift.product),
+                              _product(context, game.bloc.current!.product),
                             ),
                           ),
                           KitchenPage.shop => UpgradeShop(state),

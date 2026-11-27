@@ -1,5 +1,6 @@
 import "dart:math";
 import "package:yumyum_kitchen/src/features/kitchen/domain/campaign.dart";
+import "package:yumyum_kitchen/src/features/kitchen/domain/shift_run.dart";
 
 enum PotPhase { empty, cooking, ready, burnt }
 
@@ -35,7 +36,9 @@ class Customer {
       bowl.length == toppings.length && bowl.containsAll(toppings);
 }
 
-class KitchenRun {
+/// The original one-tap noodle stall, still used for days 2–12 until the
+/// restaurant campaign (#42) replaces them.
+class KitchenRun implements ShiftRun {
   KitchenRun({
     required this.shift,
     required this.id,
@@ -52,36 +55,58 @@ class KitchenRun {
     _nextArrival = shift.arrivalMs;
   }
   final Shift shift;
+  @override
   final String id;
   final Random random;
   final Set<Upgrade> upgrades;
   final List<Pot> pots;
   final bowls = <Set<Garnish>?>[null, null];
   final List<Customer?> customers;
+  @override
   Guide guide;
   int now = 0;
   int elapsed = 0;
+  @override
   int coins = 0;
+  @override
   int served = 0;
+  @override
   int missed = 0;
   int chain = 0;
+  @override
   int bestChain = 0;
   int? discardBowl;
   int? servedSlot;
   int? servedBowl;
   int? servedCustomerId;
   int lastReward = 0;
+  @override
   int feedbackSequence = 0;
   KitchenCue cue = KitchenCue.none;
+  @override
   bool paused = false;
+  @override
   bool ended = false;
   int _nextArrival = 0;
   int _serial = 0;
   int? _lastFast;
   int get cookMs => upgrades.contains(Upgrade.fastBoil) ? 2100 : 3000;
+  @override
   int get secondsLeft => ((shift.seconds * 1000 - elapsed) / 1000).ceil();
   int get quarterMultiplier => 4 + (chain - 1).clamp(0, 4);
+  @override
+  int get multiplierPercent => quarterMultiplier * 25;
+  @override
+  int get number => shift.number;
+  @override
+  Goal get goal => shift.goal;
+  @override
+  int get target => shift.target;
+  @override
+  NoodleProduct get product => shift.product;
+  @override
   int get progress => shift.goal == Goal.coins ? coins : served;
+  @override
   bool get won => progress >= shift.target;
   void _signal(KitchenCue value) {
     cue = value;
@@ -115,6 +140,7 @@ class KitchenRun {
   /// Advances the simulation clock to each boundary, including on slow frames.
   ///
   /// Runs every rules step, so it uses index loops and allocates nothing.
+  @override
   void advance(int milliseconds) {
     if (paused || ended || milliseconds <= 0) {
       return;

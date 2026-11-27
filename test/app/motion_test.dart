@@ -27,7 +27,7 @@ Future<KitchenBloc> _open(WidgetTester tester, {bool haptics = true}) async {
   SharedPreferences.setMockInitialValues({
     "yumyum_kitchen.progress.v1": jsonEncode({
       "wallet": 0,
-      "unlocked": 1,
+      "unlocked": 2,
       "best": {"1": 100},
       "settled": <String>[],
       "upgrades": <String>[],
@@ -47,7 +47,8 @@ Future<KitchenBloc> _open(WidgetTester tester, {bool haptics = true}) async {
 }
 
 Future<YumYumKitchenGame> _start(WidgetTester tester, KitchenBloc bloc) async {
-  bloc.add(const KitchenAction(ActionType.start, 1));
+  // Shift 2 still plays the stall (day 1 is the restaurant).
+  bloc.add(const KitchenAction(ActionType.start, 2));
   await waitForWidget(tester, find.byType(ShiftHud));
   await settleFrames(tester);
   await tester.pump(const Duration(milliseconds: 300));

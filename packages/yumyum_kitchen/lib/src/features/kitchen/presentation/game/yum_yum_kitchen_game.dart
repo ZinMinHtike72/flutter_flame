@@ -9,6 +9,7 @@ import "package:flutter/scheduler.dart";
 import "package:flutter/services.dart";
 import "package:yumyum_kitchen/src/features/kitchen/domain/campaign.dart";
 import "package:yumyum_kitchen/src/features/kitchen/domain/kitchen_run.dart";
+import "package:yumyum_kitchen/src/features/kitchen/domain/restaurant_run.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/bloc/kitchen_bloc.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/boil_sync.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/customer_cast.dart";
@@ -19,6 +20,8 @@ import "package:yumyum_kitchen/src/features/kitchen/presentation/game/market_art
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/pot_sprites.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/press_feedback.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/quality_benchmark.dart";
+import "package:yumyum_kitchen/src/features/kitchen/presentation/game/restaurant_layout.dart";
+import "package:yumyum_kitchen/src/features/kitchen/presentation/game/restaurant_view.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/sprite_atlas.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/stage_layout.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/steam_field.dart";
@@ -151,6 +154,74 @@ class YumYumKitchenGame extends FlameGame {
 
   Rect _layoutInsets = Rect.zero;
 
+  /// The restaurant's packed art (set at load).
+  RestaurantArt? restaurantArt;
+  RestaurantView? _restaurantView;
+  RestaurantLayout? _restaurantLayout;
+  RestaurantDay? _restaurantDay;
+  Rect _restaurantInsets = Rect.zero;
+
+  /// The last restaurant spot tapped, when, and whether it was refused
+  /// (drawn pressed or shaking for a moment).
+  RestaurantTarget? lastRestaurantTap;
+  double lastRestaurantTapAt = double.negativeInfinity;
+  bool lastRestaurantTapRefused = false;
+
+  /// Layout of the restaurant day in play, for this screen and insets.
+  RestaurantLayout? get restaurantLayout {
+    final run = bloc.restaurant;
+    if (run == null || size.x <= 0 || size.y <= 0) {
+      return null;
+    }
+    final current = _restaurantLayout;
+    if (current != null &&
+        identical(_restaurantDay, run.day) &&
+        current.screen.width == size.x &&
+        current.screen.height == size.y &&
+        _restaurantInsets == insets) {
+      return current;
+    }
+    _restaurantDay = run.day;
+    _restaurantInsets = insets;
+    return _restaurantLayout = RestaurantLayout.compute(
+      screen: Size(size.x, size.y),
+      insets: insets,
+      day: run.day,
+    );
+  }
+
+  /// One restaurant step: press feedback on the next frame, the rules, then
+  /// the sound and haptic of what happened.
+  void tapRestaurant(RestaurantTarget target) {
+    bloc.tapRestaurant(target.spot, target.index);
+    final run = bloc.restaurant;
+    if (run == null) {
+      return;
+    }
+    lastRestaurantTap = target;
+    lastRestaurantTapAt = motionMs;
+    lastRestaurantTapRefused = run.cue == RestaurantCue.rejected;
+    final profile = bloc.state.profile;
+    audio.play(
+      switch (run.cue) {
+        RestaurantCue.noodles => KitchenCue.pack,
+        RestaurantCue.bowlFilled => KitchenCue.transfer,
+        RestaurantCue.water ||
+        RestaurantCue.ladle ||
+        RestaurantCue.tea ||
+        RestaurantCue.selected => KitchenCue.garnish,
+        RestaurantCue.served => KitchenCue.served,
+        RestaurantCue.clearing ||
+        RestaurantCue.binned ||
+        RestaurantCue.cleared => KitchenCue.discarded,
+        RestaurantCue.lost => KitchenCue.missed,
+        RestaurantCue.none || RestaurantCue.rejected => KitchenCue.none,
+      },
+      sound: profile.sound,
+      haptics: profile.haptics,
+    );
+  }
+
   /// Loads a packed atlas (`assets/images/<name>.webp` + `.json`). The JSON
   /// is read uncached: a cached future from an earlier, disposed zone would
   /// never complete (seen across widget tests).
@@ -181,7 +252,16 @@ class YumYumKitchenGame extends FlameGame {
       benchmarkTier = QualityBenchmark.tierFor(QualityBenchmark.measure(puff));
       bloc.add(KitchenAction(ActionType.benchmark, benchmarkTier.index));
     }
+    restaurantArt = RestaurantArt(
+      room: await art.images.load("restaurant/room.webp"),
+      counter: await loadAtlas("restaurant/counter"),
+      kitchen: await loadAtlas("restaurant/kitchen"),
+      dining: await loadAtlas("restaurant/dining"),
+      waiter: await loadAtlas("restaurant/waiter"),
+      guests: await loadAtlas("restaurant/guests"),
+    );
     add(_counter = _Counter(this));
+    add(_restaurantView = RestaurantView(this));
     _preloaded = true;
   }
 
@@ -198,6 +278,10 @@ class YumYumKitchenGame extends FlameGame {
   /// frame, so only the counter's tree is rendered.
   @override
   void renderTree(Canvas canvas) {
+    if (bloc.restaurant != null) {
+      _restaurantView?.renderTree(canvas);
+      return;
+    }
     _counter?.renderTree(canvas);
   }
 

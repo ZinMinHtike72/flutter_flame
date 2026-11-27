@@ -24,7 +24,7 @@ void main() {
     SharedPreferences.setMockInitialValues({
       "yumyum_kitchen.progress.v1": jsonEncode({
         "wallet": 0,
-        "unlocked": 1,
+        "unlocked": 2,
         "best": {"1": 100},
         "settled": <String>[],
         "upgrades": <String>[],
@@ -36,7 +36,7 @@ void main() {
     await tester.pumpWidget(withTestAudio(const App()));
     await waitForWidget(tester, find.byType(MarketEntrance));
     final bloc = tester.element(find.byType(MarketEntrance)).read<KitchenBloc>()
-      ..add(const KitchenAction(ActionType.start, 1));
+      ..add(const KitchenAction(ActionType.start, 2));
     await waitForWidget(tester, find.byType(ShiftHud));
     final game = tester
         .widget<GameWidget<YumYumKitchenGame>>(

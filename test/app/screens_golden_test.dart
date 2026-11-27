@@ -8,7 +8,7 @@ import "package:game_test/app/app.dart";
 import "package:game_test/app/di/injection_container.dart";
 import "package:game_test/core/env/app_flavor.dart";
 import "package:shared_preferences/shared_preferences.dart";
-import "package:yumyum_kitchen/src/features/kitchen/domain/kitchen_run.dart";
+import "package:yumyum_kitchen/src/features/kitchen/domain/restaurant_run.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/bloc/kitchen_bloc.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/yum_yum_kitchen_game.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/widgets/market_lobby.dart";
@@ -93,33 +93,30 @@ void main() {
       await snap("tickets");
       await action(ActionType.brief, MarketBrief, 1);
       await snap("brief");
+      // Day 1 is the step-by-step restaurant.
       await action(ActionType.start, ShiftHud, 1);
-      // Let the first customer finish fading in before the picture.
-      for (var i = 0; i < 6; i++) {
-        await tester.pump(const Duration(milliseconds: 34));
-      }
-      await snap("tutorial");
+      await snap("day1");
 
       final game = tester
           .widget<GameWidget<YumYumKitchenGame>>(
             find.byType(GameWidget<YumYumKitchenGame>),
           )
           .game!;
-      Future<void> tap(Station station, [int index = 0]) async {
-        final target = game.layout!.allTargets().firstWhere(
-          (t) => t.station == station && t.index == index,
-        );
-        await tester.tapAt(target.bounds.center);
+      final run = bloc.restaurant!;
+      Future<void> step(RestaurantSpot spot, [int index = 0]) async {
+        bloc.tapRestaurant(spot, index);
         await tester.pump();
       }
 
       await settleFrames(tester);
-      await tap(Station.pack);
-      bloc.tick(3000);
-      await settleFrames(tester);
-      await tap(Station.pot);
-      await tap(Station.bowl);
-      expect(bloc.run!.served, 1);
+      await step(RestaurantSpot.pot); // water
+      bloc.tick(2600); // boiling; the first guest is seated
+      await step(RestaurantSpot.pack); // noodles in
+      bloc.tick(3100); // cooked
+      await step(RestaurantSpot.pot); // into the bowl
+      await step(RestaurantSpot.stockpot); // chicken broth
+      await step(RestaurantSpot.bowl, run.rack.selected); // serve
+      expect(run.served, 1);
       await snap("live");
       await action(ActionType.pause, PauseMenu);
       await snap("pause");
@@ -128,7 +125,7 @@ void main() {
       expect(bloc.state.profile.qualityTier, 2);
       expect(game.quality.index, 2);
       await action(ActionType.resume, ShiftHud);
-      bloc.tick(45000);
+      bloc.tick(200000);
       await waitForWidget(tester, find.byType(ShiftReceipt));
       await snap("receipt");
       await action(ActionType.shop, UpgradeShop);

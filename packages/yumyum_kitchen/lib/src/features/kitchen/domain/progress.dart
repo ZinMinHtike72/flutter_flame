@@ -1,5 +1,5 @@
 import "package:yumyum_kitchen/src/features/kitchen/domain/campaign.dart";
-import "package:yumyum_kitchen/src/features/kitchen/domain/kitchen_run.dart";
+import "package:yumyum_kitchen/src/features/kitchen/domain/shift_run.dart";
 
 class KitchenProgress {
   const KitchenProgress({
@@ -27,11 +27,11 @@ class KitchenProgress {
   /// Number of quality tiers.
   static const qualityTiers = 3;
 
-  KitchenProgress settle(KitchenRun run) {
+  KitchenProgress settle(ShiftRun run) {
     if (!run.ended || settled.contains(run.id)) {
       return this;
     }
-    final level = run.shift.number;
+    final level = run.number;
     return KitchenProgress(
       wallet: wallet + run.coins,
       unlocked: run.won && level == unlocked && unlocked < campaign.length

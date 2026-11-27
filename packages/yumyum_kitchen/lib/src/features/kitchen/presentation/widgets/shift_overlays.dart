@@ -4,12 +4,13 @@ import "package:flutter/widgets.dart";
 import "package:yumyum_kitchen/src/features/kitchen/domain/campaign.dart";
 import "package:yumyum_kitchen/src/features/kitchen/domain/kitchen_run.dart";
 import "package:yumyum_kitchen/src/features/kitchen/domain/progress.dart";
+import "package:yumyum_kitchen/src/features/kitchen/domain/shift_run.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/bloc/kitchen_bloc.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/widgets/market_style.dart";
 
 class ShiftHud extends StatelessWidget {
   const ShiftHud(this.run, {super.key});
-  final KitchenRun run;
+  final ShiftRun run;
   @override
   Widget build(BuildContext context) {
     final s = context.kitchen;
@@ -24,10 +25,10 @@ class ShiftHud extends StatelessWidget {
                 child: Row(
                   children: [
                     _HudStat(
-                      run.shift.goal == Goal.coins
+                      run.goal == Goal.coins
                           ? Icons.monetization_on_rounded
                           : Icons.people_alt_rounded,
-                      "${run.progress}/${run.shift.target}",
+                      "${run.progress}/${run.target}",
                       s.goal,
                     ),
                     Expanded(
@@ -52,7 +53,7 @@ class ShiftHud extends StatelessWidget {
                     ),
                     _HudStat(
                       Icons.local_fire_department_rounded,
-                      "×${(run.quarterMultiplier / 4).toStringAsFixed(2)}",
+                      "×${(run.multiplierPercent / 100).toStringAsFixed(2)}",
                       s.combo,
                     ),
                     const SizedBox(width: 4),
@@ -202,12 +203,12 @@ class PauseMenu extends StatelessWidget {
 
 class ShiftReceipt extends StatelessWidget {
   const ShiftReceipt(this.run, {required this.openProduct, super.key});
-  final KitchenRun run;
+  final ShiftRun run;
   final VoidCallback openProduct;
   @override
   Widget build(BuildContext context) {
     final s = context.kitchen;
-    final next = run.shift.number + 1;
+    final next = run.number + 1;
     return MarketBackdrop(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -223,7 +224,7 @@ class ShiftReceipt extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        "${s.market} · ${s.shift} ${run.shift.number}",
+                        "${s.market} · ${s.shift} ${run.number}",
                         style: marketText(12, color: paprika, bold: true),
                       ),
                       Text(
@@ -256,7 +257,7 @@ class ShiftReceipt extends StatelessWidget {
                                     ? ActionType.tickets
                                     : ActionType.brief)
                               : ActionType.start,
-                          run.won ? next : run.shift.number,
+                          run.won ? next : run.number,
                         ),
                         primary: true,
                         icon: Icons.arrow_forward_rounded,
@@ -274,12 +275,12 @@ class ShiftReceipt extends StatelessWidget {
                 children: [
                   Flexible(
                     child: Image.asset(
-                      "$imageRoot${run.shift.product.key}.png",
+                      "$imageRoot${run.product.key}.png",
                       fit: BoxFit.contain,
                     ),
                   ),
                   Text(
-                    productName(s, run.shift.product),
+                    productName(s, run.product),
                     style: marketText(16, bold: true),
                     textAlign: TextAlign.center,
                   ),

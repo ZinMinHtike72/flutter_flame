@@ -95,7 +95,7 @@ Future<void> _toReceipt(WidgetTester tester, KitchenBloc bloc) async {
   bloc.add(const KitchenAction(ActionType.start, 1));
   await waitForWidget(tester, find.byType(ShiftHud));
   await settleFrames(tester);
-  bloc.tick(60000);
+  bloc.tick(200000);
   await waitForWidget(tester, find.byType(ShiftReceipt));
 }
 
@@ -106,7 +106,7 @@ void main() {
       configureDependencies(flavor: AppFlavor.development);
     });
 
-    testWidgets("first play goes straight into the guided first order", (
+    testWidgets("first play goes straight into restaurant day 1", (
       tester,
     ) async {
       _save();
@@ -118,8 +118,8 @@ void main() {
       final bloc = _bloc(tester);
       await tester.tap(find.text("Play"));
       await waitForWidget(tester, find.byType(ShiftHud));
-      expect(bloc.run!.shift.number, 1);
-      expect(bloc.run!.guide.name, "pack", reason: "tutorial");
+      expect(bloc.restaurant!.number, 1);
+      expect(bloc.run, isNull, reason: "not the stall");
       await _close(tester);
     });
 
@@ -162,7 +162,7 @@ void main() {
     await waitForWidget(tester, find.byType(ShiftHud));
     await settleFrames(tester);
     await tester.pump(const Duration(milliseconds: 500));
-    final run = bloc.run!;
+    final run = bloc.restaurant!;
     expect(run.now, greaterThan(0));
 
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
@@ -265,7 +265,7 @@ void main() {
       // System back during a shift pauses instead of leaving.
       await tester.binding.handlePopRoute();
       await waitForWidget(tester, find.byType(PauseMenu));
-      expect(bloc.run!.paused, isTrue);
+      expect(bloc.current!.paused, isTrue);
       expect(exits, 0);
 
       // Leave from the pause menu: portrait and system bars come back first.

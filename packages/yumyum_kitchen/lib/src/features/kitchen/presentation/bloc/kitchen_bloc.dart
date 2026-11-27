@@ -1,17 +1,28 @@
 import "dart:math";
 import "package:equatable/equatable.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
+import "package:uuid/uuid.dart";
 import "package:yumyum_kitchen/src/features/kitchen/domain/campaign.dart";
 import "package:yumyum_kitchen/src/features/kitchen/domain/kitchen_run.dart";
 import "package:yumyum_kitchen/src/features/kitchen/domain/progress.dart";
+import "package:yumyum_kitchen/src/features/kitchen/domain/restaurant_run.dart";
+import "package:yumyum_kitchen/src/features/kitchen/domain/shift_run.dart";
 
 part "kitchen_event.dart";
 part "kitchen_state.dart";
 
 typedef RunFactory = KitchenRun Function(Shift shift, KitchenProgress profile);
+typedef RestaurantFactory = RestaurantRun Function(RestaurantDay day);
 
 class KitchenBloc extends Bloc<KitchenEvent, KitchenState> {
-  KitchenBloc(this.repository, this.createRun) : super(KitchenState.initial()) {
+  KitchenBloc(
+    this.repository,
+    this.createRun, {
+    RestaurantFactory? createRestaurant,
+  }) : createRestaurant =
+           createRestaurant ??
+           ((day) => RestaurantRun(day: day, id: const Uuid().v4())),
+       super(KitchenState.initial()) {
     on<KitchenEvent>(
       _handle,
       transformer: (events, mapper) => events.asyncExpand(mapper),
@@ -19,14 +30,23 @@ class KitchenBloc extends Bloc<KitchenEvent, KitchenState> {
   }
   final ProgressRepository repository;
   final RunFactory createRun;
+  final RestaurantFactory createRestaurant;
+
+  /// The old noodle stall, played on days without a restaurant version yet.
   KitchenRun? run;
+
+  /// The step-by-step restaurant (day 1 so far).
+  RestaurantRun? restaurant;
+
+  /// Whichever day is in play.
+  ShiftRun? get current => restaurant ?? run;
   KitchenPage _shopReturn = KitchenPage.tickets;
   KitchenEvent _retry = const KitchenStarted();
   bool _suspended = false;
   void suspend() {
     _suspended = true;
     if (state.page == KitchenPage.live) {
-      run?.paused = true;
+      current?.paused = true;
       add(const KitchenAction(ActionType.pause));
     }
   }
@@ -36,7 +56,7 @@ class KitchenBloc extends Bloc<KitchenEvent, KitchenState> {
   }
 
   void tick(int ms) {
-    final current = run;
+    final current = this.current;
     if (isClosed ||
         current == null ||
         current.paused ||
@@ -63,6 +83,16 @@ class KitchenBloc extends Bloc<KitchenEvent, KitchenState> {
       return;
     }
     run!.tap(station, index);
+    add(const KitchenUpdated());
+  }
+
+  /// One cooking step in the restaurant.
+  void tapRestaurant(RestaurantSpot spot, int index) {
+    final current = restaurant;
+    if (state.page != KitchenPage.live || current == null) {
+      return;
+    }
+    current.tap(spot, index);
     add(const KitchenUpdated());
   }
 
@@ -106,8 +136,15 @@ class KitchenBloc extends Bloc<KitchenEvent, KitchenState> {
         if (index < 1 || index > state.profile.unlocked) {
           return;
         }
-        run = createRun(campaign[index - 1], state.profile)
-          ..paused = _suspended;
+        if (index <= restaurantDays.length) {
+          run = null;
+          restaurant = createRestaurant(restaurantDays[index - 1])
+            ..paused = _suspended;
+        } else {
+          restaurant = null;
+          run = createRun(campaign[index - 1], state.profile)
+            ..paused = _suspended;
+        }
         emit(
           state.copyWith(
             page: _suspended ? KitchenPage.pause : KitchenPage.live,
@@ -117,16 +154,16 @@ class KitchenBloc extends Bloc<KitchenEvent, KitchenState> {
         );
       case ActionType.pause:
         if (state.page == KitchenPage.live) {
-          run?.paused = true;
+          current?.paused = true;
           emit(state.copyWith(page: KitchenPage.pause));
         }
       case ActionType.resume:
         if (state.page == KitchenPage.pause && !_suspended) {
-          run?.paused = false;
+          current?.paused = false;
           emit(state.copyWith(page: KitchenPage.live));
         }
       case ActionType.settle:
-        final current = run;
+        final current = this.current;
         if (current == null || !current.ended) {
           return;
         }
