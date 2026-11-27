@@ -98,28 +98,25 @@ class _HudStat extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Semantics(
     label: "$label $value",
-    child: DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xF020342F),
-        border: Border.all(color: const Color(0xFFA38C5E)),
-        borderRadius: BorderRadius.circular(13),
-      ),
+    child: ClaySurface(
+      radius: 16,
+      depth: .6,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: gold, size: 18),
+            Icon(icon, color: clayTomato, size: 18),
             const SizedBox(width: 4),
             if (count case final target?)
               AppCountUp(
                 value: target.toDouble(),
                 format: (v) => "${v.round()}",
                 duration: const Duration(milliseconds: 400),
-                style: marketText(15, bold: true),
+                style: marketText(15, color: ink, bold: true),
               )
             else
-              Text(value, style: marketText(15, bold: true)),
+              Text(value, style: marketText(15, color: ink, bold: true)),
           ],
         ),
       ),

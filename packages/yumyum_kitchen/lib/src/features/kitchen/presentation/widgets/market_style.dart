@@ -6,10 +6,17 @@ import "package:yumyum_kitchen/l10n/gen/kitchen_strings.dart";
 import "package:yumyum_kitchen/src/features/kitchen/domain/campaign.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/bloc/kitchen_bloc.dart";
 
-const ink = Color(0xFF132E2E);
+const ink = Color(0xFF3A2416);
 const cream = Color(0xFFFFF1D7);
 const gold = Color(0xFFFFCB69);
 const paprika = Color(0xFFB33326);
+
+// Claymorphism palette: warm, soft pastels that read as painted clay.
+const clayCream = Color(0xFFFFF0D9);
+const clayButter = Color(0xFFFFC55A);
+const clayTomato = Color(0xFFFF7E5F);
+const clayMint = Color(0xFF8ED7B3);
+const clayShadow = Color(0xFF5A3414);
 const imageRoot = "packages/yumyum_kitchen/assets/images/";
 
 extension KitchenContext on BuildContext {
@@ -35,12 +42,108 @@ TextStyle marketText(double size, {Color color = cream, bool bold = false}) =>
       decoration: TextDecoration.none,
     );
 
+/// A soft, puffy clay surface (claymorphism): a rounded body lit from the
+/// top left, a glossy highlight along the top, a gentle shade along the
+/// bottom, a light rim, and a soft drop shadow in the clay's own deep tone.
+class ClaySurface extends StatelessWidget {
+  const ClaySurface({
+    required this.child,
+    super.key,
+    this.color = clayCream,
+    this.radius = 20,
+    this.depth = 1,
+    this.padding = EdgeInsets.zero,
+  });
+
+  final Widget child;
+  final Color color;
+  final double radius;
+
+  /// Shadow size: 1 for buttons and panels, less for small chips.
+  final double depth;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    final shape = BorderRadius.circular(radius);
+    final light = Color.lerp(color, const Color(0xFFFFFFFF), .38)!;
+    final deep = Color.lerp(color, clayShadow, .28)!;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: shape,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [light, color, deep],
+          stops: const [0, .5, 1],
+        ),
+        border: Border.all(color: light, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Color.lerp(color, clayShadow, .7)!.withValues(alpha: .55),
+            offset: Offset(0, 7 * depth),
+            blurRadius: 16 * depth,
+          ),
+          BoxShadow(
+            color: const Color(0x33000000),
+            offset: Offset(0, 2 * depth),
+            blurRadius: 3 * depth,
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          // Inner shade along the bottom edge.
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: shape,
+                gradient: const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0x00000000),
+                    Color(0x00000000),
+                    Color(0x1F3A1A00),
+                  ],
+                  stops: [0, .6, 1],
+                ),
+              ),
+            ),
+          ),
+          // Gloss along the top, inset from the rim.
+          Positioned(
+            left: radius * .35,
+            right: radius * .35,
+            top: 3,
+            height: radius * .9,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(radius),
+                gradient: const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0x8CFFFFFF), Color(0x00FFFFFF)],
+                ),
+              ),
+            ),
+          ),
+          Padding(padding: padding, child: child),
+        ],
+      ),
+    );
+  }
+}
+
+/// The game's button: a clay pill. [primary] is butter yellow, the rest
+/// cream; [danger] is tomato. Presses squash it (AppPressable).
 class MarketButton extends StatelessWidget {
   const MarketButton(
     this.label,
     this.onTap, {
     super.key,
     this.primary = false,
+    this.danger = false,
     this.icon,
     this.compact = false,
     this.enabled = true,
@@ -48,12 +151,17 @@ class MarketButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
   final bool primary;
+  final bool danger;
   final IconData? icon;
   final bool compact;
   final bool enabled;
   @override
   Widget build(BuildContext context) {
-    final fg = primary ? ink : cream;
+    final color = danger
+        ? clayTomato
+        : primary
+        ? clayButter
+        : clayCream;
     return Semantics(
       button: true,
       enabled: enabled,
@@ -68,38 +176,30 @@ class MarketButton extends StatelessWidget {
               opacity: enabled ? 1 : .55,
               child: ConstrainedBox(
                 constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: primary ? gold : const Color(0xEE263D38),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: primary
-                          ? const Color(0xFFFFDF95)
-                          : const Color(0x887D9B8A),
-                    ),
+                child: ClaySurface(
+                  color: color,
+                  radius: compact ? 16 : 20,
+                  depth: compact ? .7 : 1,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: compact ? 11 : 20,
+                    vertical: 9,
                   ),
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: compact ? 10 : 19,
-                      vertical: 8,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (icon != null) Icon(icon, color: fg, size: 20),
-                        if (!compact) ...[
-                          if (icon != null) const SizedBox(width: 7),
-                          Flexible(
-                            child: Text(
-                              label,
-                              textAlign: TextAlign.center,
-                              style: marketText(15, color: fg, bold: true),
-                            ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (icon != null) Icon(icon, color: ink, size: 20),
+                      if (!compact) ...[
+                        if (icon != null) const SizedBox(width: 7),
+                        Flexible(
+                          child: Text(
+                            label,
+                            textAlign: TextAlign.center,
+                            style: marketText(15, color: ink, bold: true),
                           ),
-                        ],
+                        ),
                       ],
-                    ),
+                    ],
                   ),
                 ),
               ),
@@ -210,13 +310,11 @@ class MarketPanel extends StatelessWidget {
   const MarketPanel(this.child, {super.key});
   final Widget child;
   @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: BoxDecoration(
-      color: cream,
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: const Color(0xFFE1B46C), width: 2),
-    ),
-    child: Padding(padding: const EdgeInsets.all(15), child: child),
+  Widget build(BuildContext context) => ClaySurface(
+    radius: 28,
+    depth: 1.3,
+    padding: const EdgeInsets.all(18),
+    child: child,
   );
 }
 

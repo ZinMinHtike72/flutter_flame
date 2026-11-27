@@ -155,12 +155,20 @@ class RestaurantView extends PositionComponent with TapCallbacks {
   final _outline = Paint()
     ..style = PaintingStyle.stroke
     ..color = const Color(0xFFFFD169);
-  final _bubble = Paint()..color = const Color(0xFFFFF4DE);
+  final _bubble = Paint()..color = const Color(0xFFFFF0D9);
+  final _bubbleShadow = Paint()
+    ..color = const Color(0x735A3414)
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+  final _gloss = Paint()..color = const Color(0x73FFFFFF);
+  final _glow = Paint()
+    ..style = PaintingStyle.stroke
+    ..color = const Color(0xCCFFC55A)
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
   final _dim = Paint()..color = const Color(0x8C000000);
   final _bubbleEdge = Paint()
     ..style = PaintingStyle.stroke
-    ..strokeWidth = 2
-    ..color = const Color(0xFFE2B866);
+    ..strokeWidth = 1.5
+    ..color = const Color(0xFFFFFAF0);
   final _barTrack = Paint()..color = const Color(0x55000000);
   final _bar = Paint();
   final _binBody = Paint()..color = const Color(0xFF8E959C);
@@ -337,9 +345,26 @@ class RestaurantView extends PositionComponent with TapCallbacks {
       return;
     }
     final box = layout.ticketBoxes[index];
-    final radius = Radius.circular(box.height * .3);
+    // A clay pill: soft shadow below, body, gloss along the top, light rim.
+    final radius = Radius.circular(box.height * .45);
     c
+      ..drawRRect(
+        RRect.fromRectAndRadius(box.shift(Offset(0, box.height * .12)), radius),
+        _bubbleShadow,
+      )
       ..drawRRect(RRect.fromRectAndRadius(box, radius), _bubble)
+      ..drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(
+            box.left + box.width * .12,
+            box.top + 2,
+            box.width * .76,
+            box.height * .38,
+          ),
+          radius,
+        ),
+        _gloss,
+      )
       ..drawRRect(RRect.fromRectAndRadius(box, radius), _bubbleEdge);
     final icon = box.height * .86;
     final top = box.top + (box.height - icon) / 2;
@@ -365,8 +390,12 @@ class RestaurantView extends PositionComponent with TapCallbacks {
     final patience = ticket.patiencePermille(now);
     final barTop = box.bottom + 4;
     final barHeight = math.max(5, box.height * .14).toDouble();
-    c.drawRect(
-      Rect.fromLTWH(box.left, barTop, box.width, barHeight),
+    final barRadius = Radius.circular(barHeight / 2);
+    c.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(box.left, barTop, box.width, barHeight),
+        barRadius,
+      ),
       _barTrack,
     );
     _bar.color = patience > 500
@@ -374,8 +403,16 @@ class RestaurantView extends PositionComponent with TapCallbacks {
         : patience > 250
         ? _amber
         : _red;
-    c.drawRect(
-      Rect.fromLTWH(box.left, barTop, box.width * patience / 1000, barHeight),
+    c.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(
+          box.left,
+          barTop,
+          math.max(barHeight, box.width * patience / 1000),
+          barHeight,
+        ),
+        barRadius,
+      ),
       _bar,
     );
   }
@@ -484,8 +521,11 @@ class RestaurantView extends PositionComponent with TapCallbacks {
       final bowl = run.rack.bowls[i];
       final sprite = layout.bowlSprites[i];
       if (i == run.rack.selected) {
-        _outline.strokeWidth = math.max(3, sprite.width * .035);
-        c.drawPath(layout.bowlOutlines[i], _outline);
+        _glow.strokeWidth = math.max(6, sprite.width * .09);
+        _outline.strokeWidth = math.max(2.5, sprite.width * .028);
+        c
+          ..drawPath(layout.bowlOutlines[i], _glow)
+          ..drawPath(layout.bowlOutlines[i], _outline);
       }
       _pressed(c, RestaurantSpot.bowl, i, sprite, () {
         art.dining.draw(c, _bowlFrame(art, bowl), sprite, _paint);

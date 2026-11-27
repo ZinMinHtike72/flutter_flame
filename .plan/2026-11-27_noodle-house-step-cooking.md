@@ -210,6 +210,7 @@ rules still apply: 100 ms response, 48 dp hit areas and opaque overlay scrims.
 - [ ] status: pending - Tutorial: guided day 1 and first-use hints for each new station
 - [ ] status: pending - Upgrades shop rework
 - [ ] status: pending - Sounds and haptics for each step
+- [x] status: done - Clay UI (claymorphism) for every button, panel, HUD chip and the order bubbles; kitchen line mirrored about the centre (user request, 2026-11-27); 46 goldens re-recorded and reviewed
 - [ ] status: pending - Rename to Yum Yum Noodle House (en, my), brand and store names
 - [ ] status: pending - Update docs/features.md (and docs/api.md if anything changes)
 

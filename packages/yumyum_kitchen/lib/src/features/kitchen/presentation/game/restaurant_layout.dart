@@ -22,9 +22,10 @@ enum KitchenDecor { tomYumPot, grill, eggPot, fryer, trays, board }
 /// 1280×720 design canvas at 2×).
 ///
 /// The whole scene uses one contain fit of the design canvas, so the room,
-/// the tables, guests and waiter, and the kitchen's two rows (back: stoves,
-/// grill, egg pot, fryer; front: noodles, stockpots, bowls, trays, board)
-/// keep exactly the keyframe's arrangement on every screen. A screen wider
+/// the tables, guests and waiter keep the keyframe's arrangement on every
+/// screen, and the kitchen's two rows stay mirrored about the centre (back:
+/// noodles, egg pot, pot, grill, pot, fryer, bin; front: trays, stockpot,
+/// three bowls, stockpot, board). A screen wider
 /// than 16:9 shows the room art on both sides. Tap areas are grown to 48 dp
 /// and moved inside the safe stage where needed; the art never moves.
 class RestaurantLayout {
@@ -250,27 +251,31 @@ class RestaurantLayout {
   }
 
   /// The kitchen line from the back row's top to the front row's bottom.
-  static const kitchenDesign = Rect.fromLTRB(0, 322, 1280, 662);
+  static const kitchenDesign = Rect.fromLTRB(0, 318, 1280, 664);
+
+  // The line is mirrored about the centre (x 640). Back row: noodles, egg
+  // pot, pot | grill | pot, fryer, bin. Front row: trays, chicken stockpot,
+  // three bowls, Tom Yum stockpot, board.
+  static const _packDesign = Rect.fromLTWH(60, 368, 110, 100);
+  static const _eggPotDesign = Rect.fromLTWH(182, 340, 140, 140);
   static const _potDesign = [
-    Rect.fromLTWH(166, 318, 146, 146),
-    Rect.fromLTWH(318, 318, 146, 146),
+    Rect.fromLTWH(334, 318, 150, 150),
+    Rect.fromLTWH(796, 318, 150, 150),
   ];
+  static const _grillDesign = Rect.fromLTWH(496, 358, 288, 144);
+  static const _fryerDesign = Rect.fromLTWH(958, 340, 140, 140);
+  static const _binDesign = Rect.fromLTWH(1110, 368, 110, 100);
+  static const _traysDesign = Rect.fromLTWH(40, 524, 270, 136);
   static const _stockpotDesign = [
-    Rect.fromLTWH(140, 494, 166, 166),
-    Rect.fromLTWH(310, 494, 166, 166),
+    Rect.fromLTWH(322, 496, 166, 166),
+    Rect.fromLTWH(792, 496, 166, 166),
   ];
   static const _bowlDesign = [
-    Rect.fromLTWH(480, 538, 92, 92),
-    Rect.fromLTWH(576, 538, 92, 92),
-    Rect.fromLTWH(672, 538, 92, 92),
+    Rect.fromLTWH(488, 540, 96, 96),
+    Rect.fromLTWH(592, 540, 96, 96),
+    Rect.fromLTWH(696, 540, 96, 96),
   ];
-  static const _packDesign = Rect.fromLTWH(10, 548, 120, 110);
-  static const _binDesign = Rect.fromLTWH(30, 370, 90, 110);
-  static const _grillDesign = Rect.fromLTWH(560, 382, 360, 180);
-  static const _eggPotDesign = Rect.fromLTWH(900, 360, 130, 130);
-  static const _fryerDesign = Rect.fromLTWH(1020, 330, 200, 200);
-  static const _traysDesign = Rect.fromLTWH(762, 520, 262, 132);
-  static const _boardDesign = Rect.fromLTWH(1026, 540, 230, 120);
+  static const _boardDesign = Rect.fromLTWH(970, 524, 270, 136);
 
   final Size screen;
   final double scale;
