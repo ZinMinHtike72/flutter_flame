@@ -192,7 +192,7 @@ void main() {
       final total = ours!.values.fold(0, (a, b) => a + b);
       // ignore: avoid_print
       print(
-        "Allocations from game code over $steadyFrames steady frames: "
+        "Allocations from game code over 2 × $steadyFrames steady frames: "
         "$total ${ours.isEmpty ? "" : ours}",
       );
       expect(ours, isEmpty, reason: "frame loop allocates: $ours");

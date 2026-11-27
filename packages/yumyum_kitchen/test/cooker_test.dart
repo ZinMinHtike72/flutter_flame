@@ -261,6 +261,18 @@ void main() {
       expect(tray.nextIsCold(99999), isFalse);
     });
 
+    test("a perfect batch stays perfect until it goes cold", () {
+      final tray = ToppingTray(Topping.beef)
+        ..add(1, 0, perfect: true)
+        ..add(1, 0)
+        ..add(1, 0, perfect: true);
+      expect(tray.take(1000), Portion.perfect);
+      expect(tray.take(1000), Portion.fresh, reason: "a ready batch");
+      expect(tray.take(25000), Portion.cold, reason: "cold loses the bonus");
+      final greens = ToppingTray(Topping.onion)..add(1, 0, perfect: true);
+      expect(greens.take(900000), Portion.perfect, reason: "never cold");
+    });
+
     test("the heat lamp keeps portions fresh longer", () {
       final tray = ToppingTray(Topping.egg, freshMs: 45000)..add(1, 0);
       expect(tray.take(44999), Portion.fresh);

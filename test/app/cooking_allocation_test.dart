@@ -3,12 +3,16 @@ import "package:yumyum_kitchen/src/features/kitchen/domain/cooking/cooker.dart";
 import "package:yumyum_kitchen/src/features/kitchen/domain/cooking/cutting_board.dart";
 import "package:yumyum_kitchen/src/features/kitchen/domain/cooking/food.dart";
 import "package:yumyum_kitchen/src/features/kitchen/domain/cooking/topping_tray.dart";
+import "package:yumyum_kitchen/src/features/kitchen/domain/orders/bowl.dart";
+import "package:yumyum_kitchen/src/features/kitchen/domain/orders/recipe.dart";
+import "package:yumyum_kitchen/src/features/kitchen/domain/orders/ticket.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/frame_timing.dart";
 
 import "../helpers/allocation_trace.dart";
 
 /// A full day-12 kitchen line run by a scripted chef: two pots, three grill
-/// places, egg boiler, fryer, tea urn, every tray and the cutting board.
+/// places, egg boiler, fryer, tea urn, every tray, the cutting board, and
+/// three bowls assembled against four tickets.
 class _Kitchen {
   final cookers = [
     Cooker(CookerKind.pot),
@@ -22,6 +26,14 @@ class _Kitchen {
   ];
   final trays = [for (final t in Topping.values) ToppingTray(t)];
   final board = CuttingBoard();
+  final rack = BowlRack(3);
+  final tickets = <Ticket?>[
+    const Ticket(1, Recipe(Soup.chicken), 0, 1 << 40),
+    Ticket(2, Recipe.of(Soup.tomYum, toppings: [Topping.beef]), 0, 1 << 39),
+    null,
+    Ticket(3, Recipe.of(Soup.mala, toppings: [Topping.onion]), 0, 1 << 38),
+  ];
+  int served = 0;
   final clock = FixedStepClock();
   int now = 0;
   int steps = 0;
@@ -48,6 +60,9 @@ class _Kitchen {
         trays[pile.index].add(pile.chopPortions, now);
       }
     }
+    if (steps % 13 == 0) {
+      _assemble();
+    }
     if (steps % 11 == 0) {
       for (var t = 0; t < trays.length; t++) {
         trays[t]
@@ -56,6 +71,27 @@ class _Kitchen {
           ..nextIsCold(now);
       }
     }
+  }
+
+  /// Broth, a topping, then serve to the matching ticket or bin the bowl.
+  void _assemble() {
+    final bowl = rack.current;
+    if (!bowl.noodles) {
+      return;
+    }
+    if (bowl.addSoup(Soup.values[steps % 3]) != Assembly.added) {
+      final topping = steps.isEven ? Topping.beef : Topping.onion;
+      if (bowl.checkTopping(topping) == Assembly.added) {
+        bowl.addTopping(topping, trays[topping.index].take(now));
+      }
+    }
+    if (ticketFor(bowl, tickets) >= 0) {
+      served++;
+      bowl.clear();
+    } else if (Recipe.countOf(bowl.toppings) > 0 && bowl.soup != null) {
+      bowl.clear();
+    }
+    rack.autoSelect(tickets);
   }
 
   /// Fills, loads, flips, takes out and bins, staggered by station.
@@ -74,12 +110,25 @@ class _Kitchen {
       case CookPhase.ready:
         // Leave every third batch to ruin, so binning runs too.
         if ((steps ~/ 5) % 3 != 0) {
-          if (cooker.takeOut(now) == Doneness.perfect) {
+          final food = cooker.food!;
+          if (food == Food.noodles &&
+              rack.current.checkNoodles() != Assembly.added) {
+            return;
+          }
+          final doneness = cooker.takeOut(now);
+          if (doneness == Doneness.perfect) {
             perfect++;
           }
-          final topping = cooker.food!.topping;
+          final topping = food.topping;
           if (topping != null) {
-            trays[topping.index].add(cooker.food!.portions, now);
+            trays[topping.index].add(
+              food.portions,
+              now,
+              perfect: doneness == Doneness.perfect,
+            );
+          } else if (food == Food.noodles) {
+            rack.current.addNoodles(doneness);
+            rack.autoSelect(tickets);
           }
         }
       case CookPhase.ruined:
@@ -102,7 +151,7 @@ class _Kitchen {
 }
 
 void main() {
-  test("cooking rules steps allocate nothing", () async {
+  test("cooking and assembly rules steps allocate nothing", () async {
     final uri = await vmServiceUri();
     if (uri == null) {
       markTestSkipped(
@@ -121,15 +170,24 @@ void main() {
     const steadyFrames = 3000;
     final found = await traceAllocations(
       uri,
-      ours: const {"Cooker", "ToppingTray", "CuttingBoard"},
+      ours: const {
+        "Cooker",
+        "ToppingTray",
+        "CuttingBoard",
+        "Bowl",
+        "BowlRack",
+        "ticketFor",
+        "mostUrgent",
+      },
       traced: {...guardedClasses, "_Double", "_Mint"},
-      warmUp: () => frames(600),
+      warmUp: () => frames(1000),
       measure: () => frames(steadyFrames),
     );
     // The script really exercised every phase.
     expect(kitchen.steps, greaterThan(3500));
     expect(kitchen.perfect, greaterThan(50));
     expect(kitchen.progress, greaterThan(0));
+    expect(kitchen.served, greaterThan(5));
     expect(
       kitchen.trays.where((t) => t.topping.choppable).any((t) => t.count > 0),
       isTrue,

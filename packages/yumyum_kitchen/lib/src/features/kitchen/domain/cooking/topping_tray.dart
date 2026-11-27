@@ -1,7 +1,11 @@
 import "package:yumyum_kitchen/src/features/kitchen/domain/cooking/food.dart";
 
-/// What [ToppingTray.take] handed out.
-enum Portion { none, fresh, cold }
+/// What [ToppingTray.take] handed out:
+/// - [perfect]: from a batch taken out in its perfect window, still hot
+///   (a tip bonus);
+/// - [fresh]: good;
+/// - [cold]: a hot topping left too long (lowers the tip; no bonus).
+enum Portion { none, fresh, perfect, cold }
 
 /// A steel tray of one prepared topping.
 ///
@@ -15,7 +19,8 @@ class ToppingTray {
     this.topping, {
     this.capacity = defaultCapacity,
     this.freshMs = defaultFreshMs,
-  }) : _addedAt = List<int>.filled(capacity, 0);
+  }) : _addedAt = List<int>.filled(capacity, 0),
+       _perfect = List<bool>.filled(capacity, false);
 
   static const defaultCapacity = 8;
 
@@ -26,6 +31,7 @@ class ToppingTray {
   final int capacity;
   final int freshMs;
   final List<int> _addedAt;
+  final List<bool> _perfect;
   int _head = 0;
   int _count = 0;
 
@@ -37,11 +43,14 @@ class ToppingTray {
   /// How many more portions fit; 0 for a jar.
   int get room => topping.unlimited ? 0 : capacity - _count;
 
-  /// Adds up to [portions] made at [now]; returns how many fit.
-  int add(int portions, int now) {
+  /// Adds up to [portions] made at [now]; returns how many fit. [perfect]
+  /// marks a batch taken out in its perfect window.
+  int add(int portions, int now, {bool perfect = false}) {
     final added = portions < room ? portions : room;
     for (var i = 0; i < added; i++) {
-      _addedAt[(_head + _count) % capacity] = now;
+      final slot = (_head + _count) % capacity;
+      _addedAt[slot] = now;
+      _perfect[slot] = perfect;
       _count++;
     }
     return added;
@@ -56,9 +65,14 @@ class ToppingTray {
       return Portion.none;
     }
     final at = _addedAt[_head];
+    final perfect = _perfect[_head];
     _head = (_head + 1) % capacity;
     _count--;
-    return _cold(at, now) ? Portion.cold : Portion.fresh;
+    return _cold(at, now)
+        ? Portion.cold
+        : perfect
+        ? Portion.perfect
+        : Portion.fresh;
   }
 
   /// Whether the next portion [take] hands out is cold (draw the tray grey).

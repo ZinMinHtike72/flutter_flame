@@ -198,7 +198,7 @@ rules still apply: 100 ms response, 48 dp hit areas and opaque overlay scrims.
 - [x] status: done - Received all 27 generated sheets (`art/sources/restaurant/`); every one matches its grid and passed review, no re-rolls. Known quirks: no stools on the table sheet (seated guests are cut at the hips, so none needed), steam painted into the egg boiler and smoke into the burnt fryer (keep in-game steam light there), the counter is flatter than the keyframe.
 - [x] status: done - Packed with `dart run tool/pack_art.dart restaurant` (new filter argument) into `assets/images/restaurant/`: room 1920×648 (4.7 MB decoded), counter (2.6), kitchen (8.8), dining incl. bowls, topping overlays, takeaway, tea and ticket icons (5.6), waiter (5.0), guests (5.1), chef (1.5) — **33.3 MB decoded, 2.4 MB on disk**. Bowl topping overlays verified to land on every bowl from the JSON offsets alone. Budget note: with the standing customers (33.7 MB) the restaurant needs ~68 MB decoded; the old stall art (market, counter, pots, equipment) is dropped when the restaurant replaces it.
 - [x] status: done - Domain: generic cooker state machine and prep chains, with tests (#38) — `domain/cooking/`: `Food` and `Topping` data, `Cooker` (`CookerKind` pot/grill/egg boiler/fryer/tea urn; phases empty → heating → hot → cooking → needsFlip → perfect → ready → ruined; `advanceTo` hits each deadline exactly; `progressPermille` is an int so it never boxes), `ToppingTray` (ring buffer, FIFO, hot portions cold after 25 s, jars unlimited), `CuttingBoard` (3 cuts). Not wired into the game yet.
-- [ ] status: pending - Domain: recipes, bowl assembly, tickets, pricing and tips, with tests
+- [x] status: done - Domain: recipes, bowl assembly, tickets, pricing and tips, with tests (#39) — `domain/orders/`: `Recipe` (soup: chicken / Tom Yum / dry Mala; toppings as a bit mask; optional drink; takeaway), `Bowl` (noodles first, one soup, no duplicate topping, `Assembly` result says why a step is refused; counts perfect and cold items; `score`/`matches`), `BowlRack` (`autoSelect` to the best bowl for the most urgent uncovered ticket, keeps the current bowl on a tie), `Ticket` (`patiencePermille`, `mostUrgent`, `ticketFor`), `pricing.dart` (base 30, soup 10, toppings 5/10/15, drink 10; tip 40 % × patience + 10 % per perfect item − 10 % per cold topping, never below 0; `ServiceStreak` ×1.0 → ×2.0 in 0.1 steps). Trays now mark perfect batches (`Portion.perfect`). Not wired into the game yet.
 - [ ] status: pending - Domain: tables, waiter tasks, green tea and takeaway queue, with tests
 - [ ] status: pending - Domain: 12-day campaign, star lines and scripted-chef winnability test
 - [ ] status: pending - Layout: two-row kitchen line and table slots within the 48 dp rule; hit-area test
@@ -214,10 +214,10 @@ rules still apply: 100 ms response, 48 dp hit areas and opaque overlay scrims.
 ## Test Plan
 
 - [x] status: done - Cooker: every transition, perfect window and ruin boundary, at the 30 Hz step and on slow frames (`packages/yumyum_kitchen/test/cooker_test.dart`, 20 tests); zero allocations over 3000 frames of a full day-12 line (`test/app/cooking_allocation_test.dart`, sharing `test/helpers/allocation_trace.dart` with the frame guard)
-- [ ] status: pending - Assembly: order rules (noodles first, one broth), exact recipe match, wrong items rejected
+- [x] status: done - Assembly: order rules (noodles first, one broth), exact recipe match, wrong items rejected (`packages/yumyum_kitchen/test/orders_test.dart`, 25 tests; four mutations of the rules each caught)
 - [ ] status: pending - Dining: table life cycle, waiter queue order and walk time, green tea once per guest, takeaway pickup
 - [ ] status: pending - Campaign: each day winnable at 1★ by a scripted chef with no upgrades
-- [ ] status: pending - Pricing and tips: speed, perfect, cold and streak
+- [x] status: done - Pricing and tips: speed, perfect, cold and streak (`orders_test.dart`, incl. a stove-to-bill order)
 - [ ] status: pending - Widgets: a full day 1 journey; pause freezes every cooker, table and waiter
 - [ ] status: pending - Hit areas: non-overlapping 48 dp on 640×360, notched phone, tablet
 - [ ] status: pending - Goldens: kitchen line in each chapter, dining room, ticket rail, light and dark, en and my, small phone
@@ -226,6 +226,7 @@ rules still apply: 100 ms response, 48 dp hit areas and opaque overlay scrims.
 ## Verification
 
 - status: pending (whole feature); per-step results below
+- #39 (2026-11-27): `flutter analyze` no issues; app tests 33 passed in 3 consecutive full runs (`--enable-vmservice`); package 159; ui kit 109; network 65; coverage `orders/*` 100 %, `cooking/*` 98.4–100 %, `yumyum_kitchen` 88.6 %; format and `git diff --check` clean. The allocation guards now also cover bowl assembly, `autoSelect` and `ticketFor` (an injected list in `ticketFor` is caught), and only count sites seen in two separate measuring windows: the frame guard had failed 1 run in 4 on a one-off `_List` from the JIT under `FixedStepClock.advance`.
 - #38 (2026-11-27): `flutter analyze` no issues; `flutter test --enable-vmservice` 33 passed (frame guard 0 allocations, cooking guard 0 allocations — it first caught a boxed double from `Cooker.progress`, now `progressPermille`); package tests 133 passed; ui kit 109; network 65; coverage `cooker.dart` 98.4 %, `cutting_board.dart`, `food.dart`, `topping_tray.dart` 100 %, `yumyum_kitchen` 87.2 %; `dart format --set-exit-if-changed` and `git diff --check` clean
 - Command: `flutter analyze`, `make test`, `make test-packages`, `make coverage`
 - Result: (fill after running)
