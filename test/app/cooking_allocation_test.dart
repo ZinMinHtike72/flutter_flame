@@ -3,16 +3,17 @@ import "package:yumyum_kitchen/src/features/kitchen/domain/cooking/cooker.dart";
 import "package:yumyum_kitchen/src/features/kitchen/domain/cooking/cutting_board.dart";
 import "package:yumyum_kitchen/src/features/kitchen/domain/cooking/food.dart";
 import "package:yumyum_kitchen/src/features/kitchen/domain/cooking/topping_tray.dart";
+import "package:yumyum_kitchen/src/features/kitchen/domain/dining/dining.dart";
 import "package:yumyum_kitchen/src/features/kitchen/domain/orders/bowl.dart";
 import "package:yumyum_kitchen/src/features/kitchen/domain/orders/recipe.dart";
-import "package:yumyum_kitchen/src/features/kitchen/domain/orders/ticket.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/frame_timing.dart";
 
 import "../helpers/allocation_trace.dart";
 
 /// A full day-12 kitchen line run by a scripted chef: two pots, three grill
 /// places, egg boiler, fryer, tea urn, every tray, the cutting board, and
-/// three bowls assembled against four tickets.
+/// three bowls assembled and served to a four-table dining room with one
+/// waiter seating, carrying, pouring tea and clearing.
 class _Kitchen {
   final cookers = [
     Cooker(CookerKind.pot),
@@ -27,12 +28,15 @@ class _Kitchen {
   final trays = [for (final t in Topping.values) ToppingTray(t)];
   final board = CuttingBoard();
   final rack = BowlRack(3);
-  final tickets = <Ticket?>[
-    const Ticket(1, Recipe(Soup.chicken), 0, 1 << 40),
-    Ticket(2, Recipe.of(Soup.tomYum, toppings: [Topping.beef]), 0, 1 << 39),
-    null,
-    Ticket(3, Recipe.of(Soup.mala, toppings: [Topping.onion]), 0, 1 << 38),
+  final dining = Dining(tables: 4);
+
+  /// Built once; guests walk in again and again.
+  final guests = [
+    const Guest(1, Recipe(Soup.chicken), 40000),
+    Guest(2, Recipe.of(Soup.tomYum, toppings: [Topping.beef]), 40000),
+    Guest(3, Recipe.of(Soup.mala, toppings: [Topping.onion]), 9000),
   ];
+  int waiterAt = 0;
   int served = 0;
   final clock = FixedStepClock();
   int now = 0;
@@ -63,6 +67,16 @@ class _Kitchen {
     if (steps % 13 == 0) {
       _assemble();
     }
+    dining.advanceTo(now);
+    waiterAt += dining.waiters[0].positionAt(now);
+    if (steps % 90 == 0) {
+      dining.arrive(guests[(steps ~/ 90) % guests.length], now);
+    }
+    if (steps % 17 == 0) {
+      for (var t = 0; t < dining.tables.length; t++) {
+        dining.tapTable(t, now);
+      }
+    }
     if (steps % 11 == 0) {
       for (var t = 0; t < trays.length; t++) {
         trays[t]
@@ -85,13 +99,12 @@ class _Kitchen {
         bowl.addTopping(topping, trays[topping.index].take(now));
       }
     }
-    if (ticketFor(bowl, tickets) >= 0) {
+    if (dining.serve(bowl, now) >= 0) {
       served++;
-      bowl.clear();
     } else if (Recipe.countOf(bowl.toppings) > 0 && bowl.soup != null) {
       bowl.clear();
     }
-    rack.autoSelect(tickets);
+    rack.autoSelect(dining.tickets);
   }
 
   /// Fills, loads, flips, takes out and bins, staggered by station.
@@ -128,7 +141,7 @@ class _Kitchen {
             );
           } else if (food == Food.noodles) {
             rack.current.addNoodles(doneness);
-            rack.autoSelect(tickets);
+            rack.autoSelect(dining.tickets);
           }
         }
       case CookPhase.ruined:
@@ -178,6 +191,8 @@ void main() {
         "BowlRack",
         "ticketFor",
         "mostUrgent",
+        "Dining",
+        "Waiter",
       },
       traced: {...guardedClasses, "_Double", "_Mint"},
       warmUp: () => frames(1000),
@@ -188,6 +203,8 @@ void main() {
     expect(kitchen.perfect, greaterThan(50));
     expect(kitchen.progress, greaterThan(0));
     expect(kitchen.served, greaterThan(5));
+    expect(kitchen.dining.coins, greaterThan(0), reason: "tables cleared");
+    expect(kitchen.waiterAt, greaterThan(0));
     expect(
       kitchen.trays.where((t) => t.topping.choppable).any((t) => t.count > 0),
       isTrue,
