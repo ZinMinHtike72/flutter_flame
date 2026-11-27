@@ -107,9 +107,6 @@ const _restaurant = "art/sources/restaurant";
 /// Kitchen stations and dining props share one scale (.3 of a 1024 cell) so
 /// pots, bowls and trays keep the relative sizes they were painted at.
 final _restaurantAtlases = <Atlas>[
-  Atlas("assets/images/restaurant/counter", [
-    Sheet("$_restaurant/kitchen_counter.png", 1, 1, ["counter"], scale: .65),
-  ]),
   Atlas("assets/images/restaurant/kitchen", [
     Sheet("$_restaurant/stove_pot.png", 4, 2, [
       "stove_empty",
@@ -323,6 +320,9 @@ Future<void> main(List<String> filters) async {
       decodedBytes += _packPlate(plate.$1, plate.$2, plate.$3, plate.$4);
     }
   }
+  if (wanted(_kitchenPlate)) {
+    decodedBytes += _packKitchenPlate();
+  }
   for (final atlas in atlases.where((a) => wanted(a.output))) {
     final frames = <_Frame>[];
     for (final sheet in atlas.sheets) {
@@ -392,9 +392,50 @@ Future<void> main(List<String> filters) async {
   );
 }
 
+/// The kitchen counter, taken from the reference keyframe itself so the
+/// line looks exactly like it: everything from the counter's top edge
+/// (keyframe y 724, design y 362) down. The two painted pots are replaced
+/// by the empty steel range strip just right of them (mirror-tiled), so the
+/// game can draw its own pots in every cooking state on the bare range.
+/// Bowls stay painted: the game's bowls are the same art and cover them.
+const _kitchenPlate = "assets/images/restaurant/kitchen_plate";
+const _keyframe = "$_restaurant/restaurant_keyframe.png";
+const _counterTop = 724;
+const _potPatch = (left: 318, right: 936, bottom: 986);
+const _rangeStrip = (left: 936, right: 1128);
+
+int _packKitchenPlate() {
+  final keyframe = img.decodePng(File(_keyframe).readAsBytesSync())!;
+  final plate = img.copyCrop(
+    keyframe,
+    x: 0,
+    y: _counterTop,
+    width: keyframe.width,
+    height: keyframe.height - _counterTop,
+  );
+  final strip = _rangeStrip.right - _rangeStrip.left;
+  for (var y = _counterTop; y < _potPatch.bottom; y++) {
+    for (var x = _potPatch.left; x < _potPatch.right; x++) {
+      final k = (x - _potPatch.left) % (2 * strip);
+      final sx = k < strip
+          ? _rangeStrip.left + k
+          : _rangeStrip.right - 1 - (k - strip);
+      plate.setPixel(x, y - _counterTop, keyframe.getPixel(sx, y));
+    }
+  }
+  return _writePlate(plate, _kitchenPlate, 1920, 1);
+}
+
 /// Writes one opaque background and returns its decoded size in bytes.
-int _packPlate(String source, String output, int width, double keep) {
-  final image = img.decodePng(File(source).readAsBytesSync())!;
+int _packPlate(String source, String output, int width, double keep) =>
+    _writePlate(
+      img.decodePng(File(source).readAsBytesSync())!,
+      output,
+      width,
+      keep,
+    );
+
+int _writePlate(img.Image image, String output, int width, double keep) {
   final scaled = img.copyResize(
     image,
     width: width,

@@ -9,8 +9,11 @@ import "package:yumyum_kitchen/src/features/kitchen/presentation/bloc/kitchen_bl
 import "package:yumyum_kitchen/src/features/kitchen/presentation/widgets/market_style.dart";
 
 class ShiftHud extends StatelessWidget {
-  const ShiftHud(this.run, {super.key});
+  const ShiftHud(this.run, {super.key, this.onDiscard});
   final ShiftRun run;
+
+  /// Empties the selected bowl (restaurant days); hidden when null.
+  final VoidCallback? onDiscard;
   @override
   Widget build(BuildContext context) {
     final s = context.kitchen;
@@ -69,6 +72,15 @@ class ShiftHud extends StatelessWidget {
                       "${run.secondsLeft ~/ 60}:${(run.secondsLeft % 60).toString().padLeft(2, "0")}",
                       s.clock,
                     ),
+                    if (onDiscard case final discard?) ...[
+                      const SizedBox(width: 5),
+                      MarketButton(
+                        s.discard,
+                        discard,
+                        icon: Icons.delete_outline_rounded,
+                        compact: true,
+                      ),
+                    ],
                     const SizedBox(width: 5),
                     MarketButton(
                       s.pause,

@@ -190,6 +190,10 @@ class YumYumKitchenGame extends FlameGame {
     );
   }
 
+  /// Empties the selected bowl (the HUD's bin button).
+  void discardBowl() =>
+      tapRestaurant(const RestaurantTarget(RestaurantSpot.bin, 0, Rect.zero));
+
   /// One restaurant step: press feedback on the next frame, the rules, then
   /// the sound and haptic of what happened.
   void tapRestaurant(RestaurantTarget target) {
@@ -254,7 +258,7 @@ class YumYumKitchenGame extends FlameGame {
     }
     restaurantArt = RestaurantArt(
       room: await art.images.load("restaurant/room.webp"),
-      counter: await loadAtlas("restaurant/counter"),
+      kitchenPlate: await art.images.load("restaurant/kitchen_plate.webp"),
       kitchen: await loadAtlas("restaurant/kitchen"),
       dining: await loadAtlas("restaurant/dining"),
       waiter: await loadAtlas("restaurant/waiter"),

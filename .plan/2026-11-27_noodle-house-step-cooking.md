@@ -211,6 +211,7 @@ rules still apply: 100 ms response, 48 dp hit areas and opaque overlay scrims.
 - [ ] status: pending - Upgrades shop rework
 - [ ] status: pending - Sounds and haptics for each step
 - [x] status: done - Clay UI (claymorphism) for every button, panel, HUD chip and the order bubbles; kitchen line mirrored about the centre (user request, 2026-11-27); 46 goldens re-recorded and reviewed
+- [x] status: done - Kitchen exactly like the reference (user request, 2026-11-27): `kitchen_plate.webp` is the keyframe's own counter with the painted pots patched by the empty range strip; live pots and bowls drawn over their painted places; bin moved to a HUD button; order bubbles beside heads; clay content centred; side bands continue the art's edges. 46 goldens re-recorded and reviewed
 - [ ] status: pending - Rename to Yum Yum Noodle House (en, my), brand and store names
 - [ ] status: pending - Update docs/features.md (and docs/api.md if anything changes)
 

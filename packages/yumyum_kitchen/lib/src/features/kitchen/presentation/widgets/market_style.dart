@@ -91,7 +91,10 @@ class ClaySurface extends StatelessWidget {
           ),
         ],
       ),
+      // Content is centred: labels sit mid-height and a lone icon (back,
+      // pause) sits in the middle of its 48 dp button.
       child: Stack(
+        alignment: Alignment.center,
         children: [
           // Inner shade along the bottom edge.
           Positioned.fill(

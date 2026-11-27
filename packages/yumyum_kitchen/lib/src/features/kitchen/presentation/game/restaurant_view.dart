@@ -18,35 +18,13 @@ import "package:yumyum_kitchen/src/features/kitchen/presentation/game/yum_yum_ki
 class RestaurantArt {
   RestaurantArt({
     required this.room,
-    required this.counter,
+    required this.kitchenPlate,
     required this.kitchen,
     required this.dining,
     required this.waiter,
     required this.guests,
-  }) : counterId = counter.id("counter"),
-       stove = {for (final name in _stoves) name: kitchen.id("stove_$name")},
+  }) : stove = {for (final name in _stoves) name: kitchen.id("stove_$name")},
        kettlePour = kitchen.id("kettle_pour"),
-       grill = kitchen.id("grill"),
-       eggPot = kitchen.id("eggpot_boil"),
-       fryer = kitchen.id("fryer_oil"),
-       board = kitchen.id("board_empty"),
-       trays = [
-         for (final name in [
-           "onion",
-           "coriander",
-           "chilli",
-           "lime",
-           "egg",
-           "beef",
-         ])
-           kitchen.id("tray_$name"),
-       ],
-       noodles = kitchen.id("source_noodles"),
-       broths = [
-         kitchen.id("broth_chicken"),
-         kitchen.id("broth_tomyum"),
-         kitchen.id("sauce_mala"),
-       ],
        bowlEmpty = dining.id("bowl_empty"),
        bowlNoodles = dining.id("bowl_noodles"),
        bowlSoups = [
@@ -92,23 +70,15 @@ class RestaurantArt {
   ];
 
   final Image room;
-  final SpriteAtlas counter;
+
+  /// The reference keyframe's own counter, painted pots removed.
+  final Image kitchenPlate;
   final SpriteAtlas kitchen;
   final SpriteAtlas dining;
   final SpriteAtlas waiter;
   final SpriteAtlas guests;
-  final int counterId;
   final Map<String, int> stove;
   final int kettlePour;
-  final int grill;
-  final int eggPot;
-  final int fryer;
-  final int board;
-
-  /// Spring onion, coriander, chilli, lime, egg, beef (as in the keyframe).
-  final List<int> trays;
-  final int noodles;
-  final List<int> broths;
   final int bowlEmpty;
   final int bowlNoodles;
   final List<int> bowlSoups;
@@ -138,9 +108,10 @@ class RestaurantArt {
 
 /// Draws a restaurant day and turns taps into cooking steps.
 ///
-/// Drawn in screen space like the stall's counter: the room plate, tables
-/// with seated guests, the waiter on the aisle, guests at the door, then the
-/// counter and the kitchen line (stove pots, stockpot, bowls, bin).
+/// Drawn in screen space: the room plate, tables with seated guests, the
+/// waiter on the aisle and guests at the door, then the reference kitchen
+/// (`kitchen_plate.webp`) with the live pots and bowls drawn over their
+/// painted places.
 class RestaurantView extends PositionComponent with TapCallbacks {
   RestaurantView(this.game);
 
@@ -164,18 +135,16 @@ class RestaurantView extends PositionComponent with TapCallbacks {
     ..style = PaintingStyle.stroke
     ..color = const Color(0xCCFFC55A)
     ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
-  final _dim = Paint()..color = const Color(0x8C000000);
+  final _bandShade = Paint();
   final _bubbleEdge = Paint()
     ..style = PaintingStyle.stroke
     ..strokeWidth = 1.5
     ..color = const Color(0xFFFFFAF0);
   final _barTrack = Paint()..color = const Color(0x55000000);
   final _bar = Paint();
-  final _binBody = Paint()..color = const Color(0xFF8E959C);
-  final _binLid = Paint()..color = const Color(0xFF3B4045);
-  final _binRib = Paint()
-    ..color = const Color(0xFF6F767D)
-    ..strokeWidth = 2;
+  final _flash = Paint()
+    ..style = PaintingStyle.stroke
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
   final _debug = Paint()
     ..style = PaintingStyle.stroke
     ..strokeWidth = 2;
@@ -221,29 +190,20 @@ class RestaurantView extends PositionComponent with TapCallbacks {
       return;
     }
     final now = run.now;
-    final source = Rect.fromLTWH(
-      0,
-      0,
-      art.room.width.toDouble(),
-      art.room.height.toDouble(),
-    );
-    c.drawImageRect(art.room, source, layout.roomFill, _paint);
-    art.counter.draw(c, art.counterId, layout.counterFill, _paint);
-    c
-      ..drawRect(Offset.zero & size.toSize(), _dim)
-      ..drawImageRect(
-        art.room,
-        Rect.fromLTWH(
-          0,
-          0,
-          art.room.width.toDouble(),
-          art.room.height.toDouble(),
-        ),
-        layout.roomRect,
-        _paint,
-      );
+    // Wider than 16:9: each side shows the art's outermost strip stretched
+    // (the counter and room carry on instead of repeating), fading darker.
+    if (layout.roomRect.left > 0) {
+      _bands(c, art.room, layout.roomRect);
+      _bands(c, art.kitchenPlate, layout.kitchenRect);
+    }
+    c.drawImageRect(art.room, _plateSource(art.room), layout.roomRect, _paint);
     _dining(c, run, layout, art, now);
-    art.counter.draw(c, art.counterId, layout.counterRect, _paint);
+    c.drawImageRect(
+      art.kitchenPlate,
+      _plateSource(art.kitchenPlate),
+      layout.kitchenRect,
+      _paint,
+    );
     _kitchen(c, run, layout, art, now);
     if (game.showHitBoxes) {
       _hitBoxes(c, layout);
@@ -347,11 +307,18 @@ class RestaurantView extends PositionComponent with TapCallbacks {
     final box = layout.ticketBoxes[index];
     // A clay pill: soft shadow below, body, gloss along the top, light rim.
     final radius = Radius.circular(box.height * .45);
+    // A small tail pointing back at the guest's face.
+    final tail = Path()
+      ..moveTo(box.left + box.height * .2, box.center.dy - box.height * .22)
+      ..lineTo(box.left - box.height * .32, box.center.dy + box.height * .05)
+      ..lineTo(box.left + box.height * .25, box.center.dy + box.height * .2)
+      ..close();
     c
       ..drawRRect(
         RRect.fromRectAndRadius(box.shift(Offset(0, box.height * .12)), radius),
         _bubbleShadow,
       )
+      ..drawPath(tail, _bubble)
       ..drawRRect(RRect.fromRectAndRadius(box, radius), _bubble)
       ..drawRRect(
         RRect.fromRectAndRadius(
@@ -488,10 +455,11 @@ class RestaurantView extends PositionComponent with TapCallbacks {
     RestaurantArt art,
     int now,
   ) {
-    _decor(c, layout, art);
-    _pressed(c, RestaurantSpot.pack, 0, layout.packSprite, () {
-      art.kitchen.draw(c, art.noodles, layout.packSprite, _paint);
-    });
+    // Painted stations (noodles, stockpots) glow when tapped.
+    _glowIfTapped(c, RestaurantSpot.pack, 0, layout.pack);
+    for (var i = 0; i < layout.stockpots.length; i++) {
+      _glowIfTapped(c, RestaurantSpot.stockpot, i, layout.stockpots[i]);
+    }
     for (var i = 0; i < run.pots.length; i++) {
       final pot = run.pots[i];
       final sprite = layout.potSprites[i];
@@ -511,18 +479,13 @@ class RestaurantView extends PositionComponent with TapCallbacks {
       });
       _progressRing(c, layout.potRings[i], pot, now);
     }
-    for (var i = 0; i < run.day.soups.length; i++) {
-      final sprite = layout.stockpotSprites[i];
-      _pressed(c, RestaurantSpot.stockpot, i, sprite, () {
-        art.kitchen.draw(c, art.broths[run.day.soups[i].index], sprite, _paint);
-      });
-    }
     for (var i = 0; i < run.rack.bowls.length; i++) {
       final bowl = run.rack.bowls[i];
       final sprite = layout.bowlSprites[i];
       if (i == run.rack.selected) {
-        _glow.strokeWidth = math.max(6, sprite.width * .09);
-        _outline.strokeWidth = math.max(2.5, sprite.width * .028);
+        final body = layout.bowlBodies[i];
+        _glow.strokeWidth = math.max(6, body.width * .12);
+        _outline.strokeWidth = math.max(2.5, body.width * .035);
         c
           ..drawPath(layout.bowlOutlines[i], _glow)
           ..drawPath(layout.bowlOutlines[i], _outline);
@@ -531,77 +494,62 @@ class RestaurantView extends PositionComponent with TapCallbacks {
         art.dining.draw(c, _bowlFrame(art, bowl), sprite, _paint);
       });
     }
-    _pressed(c, RestaurantSpot.bin, 0, layout.binSprite, () {
-      _bin(c, layout.binSprite);
-    });
   }
 
-  /// Equipment this day does not use yet, drawn where the keyframe has it.
-  void _decor(Canvas c, RestaurantLayout layout, RestaurantArt art) {
-    for (final MapEntry(key: item, value: r) in layout.decor.entries) {
-      switch (item) {
-        case KitchenDecor.tomYumPot:
-          art.kitchen.draw(c, art.broths[1], r, _paint);
-        case KitchenDecor.grill:
-          art.kitchen.draw(c, art.grill, r, _paint);
-        case KitchenDecor.eggPot:
-          art.kitchen.draw(c, art.eggPot, r, _paint);
-        case KitchenDecor.fryer:
-          art.kitchen.draw(c, art.fryer, r, _paint);
-        case KitchenDecor.board:
-          art.kitchen.draw(c, art.board, r, _paint);
-        case KitchenDecor.trays:
-          final w = r.width / 3;
-          final h = r.height / 2;
-          for (var i = 0; i < art.trays.length; i++) {
-            art.kitchen.drawAt(
-              c,
-              art.trays[i],
-              r.left + (i % 3) * w - w * .05,
-              r.top + (i ~/ 3) * h - h * .35,
-              w * 1.1,
-              w * 1.1,
-              _paint,
-            );
-          }
-      }
+  /// A soft clay glow over a painted station for a moment after a tap:
+  /// butter when the step happened, tomato when it was refused.
+  void _glowIfTapped(Canvas c, RestaurantSpot spot, int index, Rect area) {
+    final tap = game.lastRestaurantTap;
+    final age = game.motionMs - game.lastRestaurantTapAt;
+    if (tap == null || tap.spot != spot || tap.index != index || age > 260) {
+      return;
     }
-  }
-
-  /// A brushed-steel pedal bin with a dark lid.
-  void _bin(Canvas c, Rect r) {
-    final body = Rect.fromLTRB(
-      r.left + r.width * .16,
-      r.top + r.height * .22,
-      r.right - r.width * .16,
-      r.bottom,
+    final fade = 1 - age / 260;
+    _flash
+      ..color = (game.lastRestaurantTapRefused ? _red : const Color(0xFFFFC55A))
+          .withValues(alpha: .55 * fade)
+      ..strokeWidth = math.max(8, area.shortestSide * .12);
+    c.drawRRect(
+      RRect.fromRectAndRadius(
+        area.deflate(area.shortestSide * .06),
+        Radius.circular(area.shortestSide * .22),
+      ),
+      _flash,
     );
-    c
-      ..drawRRect(
-        RRect.fromRectAndRadius(body, Radius.circular(r.width * .08)),
-        _binBody,
-      )
-      ..drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTRB(
-            r.left + r.width * .1,
-            r.top + r.height * .1,
-            r.right - r.width * .1,
-            r.top + r.height * .24,
-          ),
-          Radius.circular(r.width * .06),
-        ),
-        _binLid,
-      );
-    for (var i = 1; i <= 3; i++) {
-      final x = body.left + body.width * i / 4;
-      c.drawLine(
-        Offset(x, body.top + body.height * .15),
-        Offset(x, body.bottom - body.height * .12),
-        _binRib,
-      );
-    }
   }
+
+  /// Fills the screen beside [scene] with [image]'s left and right edge
+  /// strips, shaded from clear at the scene to dark at the screen edge.
+  void _bands(Canvas c, Image image, Rect scene) {
+    final w = image.width.toDouble();
+    final h = image.height.toDouble();
+    final strip = w * .01;
+    final left = Rect.fromLTRB(0, scene.top, scene.left, scene.bottom);
+    final right = Rect.fromLTRB(scene.right, scene.top, size.x, scene.bottom);
+    c
+      ..drawImageRect(image, Rect.fromLTWH(0, 0, strip, h), left, _paint)
+      ..drawImageRect(
+        image,
+        Rect.fromLTWH(w - strip, 0, strip, h),
+        right,
+        _paint,
+      );
+    _bandShade.shader = Gradient.linear(
+      Offset(0, 0),
+      Offset(left.right, 0),
+      const [Color(0xCC000000), Color(0x33000000)],
+    );
+    c.drawRect(left, _bandShade);
+    _bandShade.shader = Gradient.linear(
+      Offset(right.left, 0),
+      Offset(right.right, 0),
+      const [Color(0x33000000), Color(0xCC000000)],
+    );
+    c.drawRect(right, _bandShade);
+  }
+
+  static Rect _plateSource(Image image) =>
+      Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble());
 
   String _stoveFrame(Cooker pot, int now) => switch (pot.phase) {
     CookPhase.empty => "empty",

@@ -12,22 +12,18 @@ class RestaurantTarget {
   final Rect bounds;
 }
 
-/// Equipment drawn on the line that the day does not use yet (second
-/// stockpot, grill, egg pot, fryer, trays, board), so the kitchen always
-/// looks like the reference keyframe.
-enum KitchenDecor { tomYumPot, grill, eggPot, fryer, trays, board }
-
-/// Screen geometry of the restaurant, composed like the reference keyframe
-/// (`art/sources/restaurant/restaurant_keyframe.png`, 2560×1440, i.e. the
-/// 1280×720 design canvas at 2×).
+/// Screen geometry of the restaurant, composed exactly like the reference
+/// keyframe (`art/sources/restaurant/restaurant_keyframe.png`, 2560×1440,
+/// i.e. the 1280×720 design canvas at 2×).
 ///
-/// The whole scene uses one contain fit of the design canvas, so the room,
-/// the tables, guests and waiter keep the keyframe's arrangement on every
-/// screen, and the kitchen's two rows stay mirrored about the centre (back:
-/// noodles, egg pot, pot, grill, pot, fryer, bin; front: trays, stockpot,
-/// three bowls, stockpot, board). A screen wider
-/// than 16:9 shows the room art on both sides. Tap areas are grown to 48 dp
-/// and moved inside the safe stage where needed; the art never moves.
+/// The whole scene uses one contain fit of the design canvas, so it keeps
+/// the keyframe's arrangement on every screen; a screen wider than 16:9
+/// continues the art's outer edges, shaded, on both sides. The kitchen is the
+/// keyframe's own counter (`kitchen_plate.webp`), so everything on it is
+/// where the reference has it; the game only draws what changes on top —
+/// the two pots on the range and the three bowls — exactly over their
+/// painted places. Tap areas are grown to 48 dp and moved inside the safe
+/// stage where needed; the art never moves.
 class RestaurantLayout {
   RestaurantLayout._({
     required this.screen,
@@ -40,27 +36,21 @@ class RestaurantLayout {
     required this.pots,
     required this.stockpots,
     required this.bowls,
-    required this.bin,
     required this.tables,
-    required this.packSprite,
     required this.potSprites,
-    required this.stockpotSprites,
     required this.bowlSprites,
-    required this.binSprite,
-    required this.decor,
+    required this.potBodies,
+    required this.bowlBodies,
     required this.tableBoxes,
-    required this.tableFronts,
     required this.guestBoxes,
     required this.ticketBoxes,
     required this.overlayBoxes,
     required this.waiterHeight,
     required this.floorY,
-  }) : potRings = [for (final r in potSprites) _ring(r)],
-       bowlOutlines = [for (final r in bowlSprites) _outline(r)],
+  }) : potRings = [for (final r in potBodies) _ring(r)],
+       bowlOutlines = [for (final r in bowlBodies) _outline(r)],
        roomRect = _cover(scale, origin, roomDesign),
-       counterRect = _cover(scale, origin, counterDesign),
-       roomFill = _fill(screen, roomDesign),
-       counterFill = _fill(screen, counterDesign);
+       kitchenRect = _cover(scale, origin, kitchenDesign);
 
   factory RestaurantLayout.compute({
     required Size screen,
@@ -68,8 +58,6 @@ class RestaurantLayout {
     required RestaurantDay day,
   }) {
     const g = StageLayout.gap;
-    // Contain fit: the whole keyframe is visible on every screen; extra
-    // width shows the room art behind it (see [roomFill]).
     final scale = math.min(
       screen.width / StageLayout.designSize.width,
       screen.height / StageLayout.designSize.height,
@@ -79,7 +67,6 @@ class RestaurantLayout {
       (screen.height - StageLayout.designSize.height * scale) / 2,
     );
     Rect cover(Rect r) => _cover(scale, origin, r);
-    Rect kitchen(Rect r) => cover(r);
     final safe = Rect.fromLTRB(
       insets.left + StageLayout.edgeMargin,
       insets.top + StageLayout.edgeMargin,
@@ -92,64 +79,26 @@ class RestaurantLayout {
       safe.width,
       StageLayout.hudHeight,
     );
-    final kitchenTop = math.max(
-      origin.dy + kitchenDesign.top * scale,
-      hud.bottom + g,
-    );
     final action = Rect.fromLTRB(
       safe.left,
-      kitchenTop,
+      math.max(origin.dy + kitchenDesign.top * scale, hud.bottom + g),
       safe.right,
       safe.bottom,
     );
 
-    final potSprites = [
-      for (var i = 0; i < day.pots; i++) kitchen(_potDesign[i]),
-    ];
-    final stockpotSprites = [
-      for (var i = 0; i < day.soups.length; i++) kitchen(_stockpotDesign[i]),
-    ];
-    final bowlSprites = [
-      for (var i = 0; i < day.bowls; i++) kitchen(_bowlDesign[i]),
-    ];
-    final packSprite = kitchen(_packDesign);
-    final binSprite = kitchen(_binDesign);
-    final decor = <KitchenDecor, Rect>{
-      if (day.soups.length < 2)
-        KitchenDecor.tomYumPot: kitchen(_stockpotDesign[1]),
-      KitchenDecor.grill: kitchen(_grillDesign),
-      KitchenDecor.eggPot: kitchen(_eggPotDesign),
-      KitchenDecor.fryer: kitchen(_fryerDesign),
-      KitchenDecor.trays: kitchen(_traysDesign),
-      KitchenDecor.board: kitchen(_boardDesign),
-    };
-
-    // Dining room: tables, guests and the waiter in cover-fit design space.
+    // Dining room: tables, guests and the waiter.
     final floorY = origin.dy + floorDesign * scale;
     final tableBoxes = <Rect>[];
-    final tableFronts = <Rect>[];
     final guestBoxes = <Rect>[];
     final ticketBoxes = <Rect>[];
     final overlayBoxes = <Rect>[];
     final tables = <Rect>[];
     for (var i = 0; i < day.tables; i++) {
       final top = _tableTops[i];
-      final table = cover(_tableCell(top));
       final guest = cover(_guestCell(top));
-      final ticket = cover(_ticketCell(top));
-      tableBoxes.add(table);
-      tableFronts.add(
-        cover(
-          Rect.fromLTRB(top.left - 6, top.top + 4, top.right + 6, floorDesign),
-        ),
-      );
+      tableBoxes.add(cover(_tableCell(top)));
       guestBoxes.add(guest);
-      final minTop = hud.bottom + 4;
-      ticketBoxes.add(
-        ticket.top < minTop
-            ? ticket.shift(Offset(0, minTop - ticket.top))
-            : ticket,
-      );
+      ticketBoxes.add(cover(_ticketCell(top)));
       overlayBoxes.add(cover(_overlayCell(top)));
       tables.add(
         Rect.fromLTRB(
@@ -161,7 +110,8 @@ class RestaurantLayout {
       );
     }
 
-    Rect target(Rect sprite) => _atLeast(sprite, StageLayout.minHit, action);
+    Rect target(Rect design) =>
+        _atLeast(cover(design), StageLayout.minHit, action);
 
     return RestaurantLayout._(
       screen: screen,
@@ -170,20 +120,21 @@ class RestaurantLayout {
       safe: safe,
       hud: hud,
       action: action,
-      pack: target(packSprite),
-      pots: [for (final r in potSprites) target(r)],
-      stockpots: [for (final r in stockpotSprites) target(r)],
-      bowls: [for (final r in bowlSprites) target(r)],
-      bin: target(binSprite),
+      pack: target(_packDesign),
+      pots: [for (var i = 0; i < day.pots; i++) target(_potBodyDesign[i])],
+      stockpots: [
+        for (var i = 0; i < day.soups.length; i++)
+          target(_stockpotDesign[day.soups[i].index]),
+      ],
+      bowls: [for (var i = 0; i < day.bowls; i++) target(_bowlBodyDesign[i])],
       tables: tables,
-      packSprite: packSprite,
-      potSprites: potSprites,
-      stockpotSprites: stockpotSprites,
-      bowlSprites: bowlSprites,
-      binSprite: binSprite,
-      decor: decor,
+      potSprites: [for (var i = 0; i < day.pots; i++) cover(_potCell(i))],
+      bowlSprites: [for (var i = 0; i < day.bowls; i++) cover(_bowlCell(i))],
+      potBodies: [for (var i = 0; i < day.pots; i++) cover(_potBodyDesign[i])],
+      bowlBodies: [
+        for (var i = 0; i < day.bowls; i++) cover(_bowlBodyDesign[i]),
+      ],
       tableBoxes: tableBoxes,
-      tableFronts: tableFronts,
       guestBoxes: guestBoxes,
       ticketBoxes: ticketBoxes,
       overlayBoxes: overlayBoxes,
@@ -194,14 +145,14 @@ class RestaurantLayout {
 
   // ---- The keyframe, in design pixels (keyframe pixels ÷ 2). ----
 
-  /// Room art covers the top of the canvas; the counter its bottom.
+  /// Room art covers the top of the canvas; the keyframe's own counter
+  /// (cut at its top edge, keyframe y 724) covers the bottom.
   static const roomDesign = Rect.fromLTWH(0, 0, 1280, 432);
-  static const counterDesign = Rect.fromLTWH(0, 360, 1280, 360);
+  static const kitchenDesign = Rect.fromLTWH(0, 362, 1280, 358);
 
   /// The waiter's and standing guests' feet line, and an adult's height.
   static const floorDesign = 358.0;
   static const waiterDesign = 281.0;
-
   static const aisleStart = 120.0;
   static const aisleEnd = 1200.0;
 
@@ -212,6 +163,51 @@ class RestaurantLayout {
     Rect.fromLTRB(717, 250, 906, 262),
     Rect.fromLTRB(925, 250, 1117, 262),
   ];
+
+  /// The two enamel pots on the range (body and handles), and the noodle
+  /// blocks, stockpots and bowls on the front counter, as painted.
+  static const _potBodyDesign = [
+    Rect.fromLTWH(171, 343, 141, 139),
+    Rect.fromLTWH(322, 343, 141, 139),
+  ];
+  static const _packDesign = Rect.fromLTWH(0, 562, 140, 100);
+
+  /// By `Soup.index`: chicken, Tom Yum.
+  static const _stockpotDesign = [
+    Rect.fromLTWH(146, 496, 164, 158),
+    Rect.fromLTWH(314, 496, 158, 158),
+  ];
+  static const _bowlBodyDesign = [
+    Rect.fromLTWH(480, 560, 88, 74),
+    Rect.fromLTWH(572, 560, 88, 74),
+    Rect.fromLTWH(664, 560, 88, 74),
+  ];
+
+  /// The stove sprite cell for pot [i]: the pot with handles fills 80 % of
+  /// the cell's width and its burner ends 89 % down, on the range top.
+  static Rect _potCell(int i) {
+    final body = _potBodyDesign[i];
+    final size = body.width / .8;
+    return Rect.fromLTWH(
+      body.center.dx - size / 2,
+      body.bottom - size * .89,
+      size,
+      size,
+    );
+  }
+
+  /// The bowl sprite cell for bowl [i]: the bowl fills 80 % of the cell's
+  /// width, its rim 15.5 % down.
+  static Rect _bowlCell(int i) {
+    final body = _bowlBodyDesign[i];
+    final size = body.width / .8;
+    return Rect.fromLTWH(
+      body.center.dx - size / 2,
+      body.top - size * .155,
+      size,
+      size,
+    );
+  }
 
   /// The whole table sprite cell for a table top (the table art fills 72 %
   /// of its cell width, its top at 10 % of the cell height).
@@ -237,8 +233,10 @@ class RestaurantLayout {
     );
   }
 
+  /// The order bubble beside the guest's head (never over the face, and
+  /// below the HUD band on every screen).
   static Rect _ticketCell(Rect top) =>
-      Rect.fromCenter(center: Offset(top.center.dx, 96), width: 92, height: 38);
+      Rect.fromLTWH(top.center.dx + 40, 138, 92, 38);
 
   static Rect _overlayCell(Rect top) {
     final width = top.width * 1.1;
@@ -250,33 +248,6 @@ class RestaurantLayout {
     );
   }
 
-  /// The kitchen line from the back row's top to the front row's bottom.
-  static const kitchenDesign = Rect.fromLTRB(0, 318, 1280, 664);
-
-  // The line is mirrored about the centre (x 640). Back row: noodles, egg
-  // pot, pot | grill | pot, fryer, bin. Front row: trays, chicken stockpot,
-  // three bowls, Tom Yum stockpot, board.
-  static const _packDesign = Rect.fromLTWH(60, 368, 110, 100);
-  static const _eggPotDesign = Rect.fromLTWH(182, 340, 140, 140);
-  static const _potDesign = [
-    Rect.fromLTWH(334, 318, 150, 150),
-    Rect.fromLTWH(796, 318, 150, 150),
-  ];
-  static const _grillDesign = Rect.fromLTWH(496, 358, 288, 144);
-  static const _fryerDesign = Rect.fromLTWH(958, 340, 140, 140);
-  static const _binDesign = Rect.fromLTWH(1110, 368, 110, 100);
-  static const _traysDesign = Rect.fromLTWH(40, 524, 270, 136);
-  static const _stockpotDesign = [
-    Rect.fromLTWH(322, 496, 166, 166),
-    Rect.fromLTWH(792, 496, 166, 166),
-  ];
-  static const _bowlDesign = [
-    Rect.fromLTWH(488, 540, 96, 96),
-    Rect.fromLTWH(592, 540, 96, 96),
-    Rect.fromLTWH(696, 540, 96, 96),
-  ];
-  static const _boardDesign = Rect.fromLTWH(970, 524, 270, 136);
-
   final Size screen;
   final double scale;
   final Offset origin;
@@ -286,35 +257,29 @@ class RestaurantLayout {
   /// The kitchen line's area, inside the safe stage.
   final Rect action;
 
-  // Hit boxes (each at least 48 dp) …
+  // Hit boxes (each at least 48 dp).
   final Rect pack;
   final List<Rect> pots;
   final List<Rect> stockpots;
   final List<Rect> bowls;
-  final Rect bin;
   final List<Rect> tables;
 
-  // … and the art inside them.
-  final Rect packSprite;
+  /// Where the game draws the pots (stove cells) and bowls (bowl cells),
+  /// and where their painted bodies are.
   final List<Rect> potSprites;
-  final List<Rect> stockpotSprites;
   final List<Rect> bowlSprites;
-  final Rect binSprite;
-
-  /// Equipment shown but not used by this day.
-  final Map<KitchenDecor, Rect> decor;
+  final List<Rect> potBodies;
+  final List<Rect> bowlBodies;
 
   /// Progress rings on each pot.
   final List<Rect> potRings;
 
-  /// Gold outline of the selected bowl.
+  /// Butter outline of the selected bowl.
   final List<Path> bowlOutlines;
 
-  /// The table art, the slice of it drawn again in front of a seated guest
-  /// (its top edge down to the floor), the guest, the order bubble and the
-  /// tea set / dirty bowls / coins.
+  /// The table art, the seated guest, the order bubble and the tea set /
+  /// dirty bowls / coins.
   final List<Rect> tableBoxes;
-  final List<Rect> tableFronts;
   final List<Rect> guestBoxes;
   final List<Rect> ticketBoxes;
   final List<Rect> overlayBoxes;
@@ -324,22 +289,7 @@ class RestaurantLayout {
   final double floorY;
 
   final Rect roomRect;
-  final Rect counterRect;
-
-  /// The same room and counter art cover-fitted to the whole screen, drawn
-  /// dimmed behind the scene so wider screens show the room on both sides.
-  final Rect roomFill;
-  final Rect counterFill;
-
-  static Rect _fill(Size screen, Rect design) {
-    final k = math.max(
-      screen.width / StageLayout.designSize.width,
-      screen.height / StageLayout.designSize.height,
-    );
-    final dx = (screen.width - StageLayout.designSize.width * k) / 2;
-    final dy = (screen.height - StageLayout.designSize.height * k) / 2;
-    return _cover(k, Offset(dx, dy), design);
-  }
+  final Rect kitchenRect;
 
   /// Screen x of an aisle position (0 door … 1000 takeaway shelf).
   double aisleX(int position) =>
@@ -355,7 +305,6 @@ class RestaurantLayout {
       RestaurantTarget(RestaurantSpot.stockpot, i, stockpots[i]),
     for (var i = 0; i < bowls.length; i++)
       RestaurantTarget(RestaurantSpot.bowl, i, bowls[i]),
-    RestaurantTarget(RestaurantSpot.bin, 0, bin),
     for (var i = 0; i < tables.length; i++)
       RestaurantTarget(RestaurantSpot.table, i, tables[i]),
   ];
@@ -377,8 +326,12 @@ class RestaurantLayout {
     r.height * scale,
   );
 
-  /// [r] grown about its centre to at least [min] each way, kept in [area].
-  static Rect _atLeast(Rect r, double min, Rect area) {
+  /// [target] clipped to [area], then grown about its centre to at least [min]
+  /// each way and kept in [area]. Clipping first means a target that is
+  /// already big enough is never pushed into its neighbour.
+  static Rect _atLeast(Rect target, double min, Rect area) {
+    final clipped = target.intersect(area);
+    final r = clipped.width > 0 && clipped.height > 0 ? clipped : target;
     final grown = Rect.fromCenter(
       center: r.center,
       width: math.max(r.width, min),
@@ -400,19 +353,14 @@ class RestaurantLayout {
   /// Sits on the pot's upper right, over the rim.
   static Rect _ring(Rect pot) {
     final d = math.max(18, pot.width * .2).toDouble();
-    return Rect.fromLTWH(
-      pot.right - d * 1.15,
-      pot.top + pot.height * .04,
-      d,
-      d,
-    );
+    return Rect.fromLTWH(pot.right - d * .9, pot.top - d * .2, d, d);
   }
 
-  static Path _outline(Rect sprite) => Path()
+  static Path _outline(Rect body) => Path()
     ..addRRect(
       RRect.fromRectAndRadius(
-        sprite.deflate(sprite.width * .02),
-        Radius.circular(sprite.width * .14),
+        body.inflate(body.width * .06),
+        Radius.circular(body.width * .2),
       ),
     );
 }

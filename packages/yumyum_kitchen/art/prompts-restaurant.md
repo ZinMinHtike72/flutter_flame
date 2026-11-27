@@ -305,12 +305,12 @@ sheet that needs a re-roll before wiring it in.
 
 ---
 
-## 20. Clean keyframe plate — `restaurant_clean.png` (image edit)
+## 20. Clean dining room — `restaurant_clean.png` (image edit)
 
-The game screen is composed exactly like the keyframe. To make it look the
-same, the background must be the keyframe itself without anything the game
-draws. Use an **image-edit** tool with `restaurant_keyframe.png` as the
-input image:
+The kitchen already uses the keyframe's own counter (`tool/pack_art.dart`
+builds `kitchen_plate.webp` from it), so only the **dining room** still
+needs a version without people. Use an **image-edit** tool with
+`restaurant_keyframe.png` as the input image:
 
 > Edit this exact image. Keep the camera, composition, lighting, colours and
 > every object's position pixel-identical. Remove only these, filling in
@@ -320,14 +320,8 @@ input image:
 > the delivery rider at the takeaway window;
 > 2. everything on the four tables: bowls, noodles, chopstick cups and
 > sauce jars (keep the tables and all wooden stools);
-> 3. the boxes on the takeaway shelf;
-> 4. everything on the kitchen counter: both enamel pots and their gas
-> burners, the grill and its meat, the small egg pot and its burner, the
-> deep fryer, the two big stockpots, the three bowls, all six steel trays,
-> the cutting board and cleaver, the noodle blocks and basket, the utensil
-> holders, the oil bottle, the stacked boxes and the checked towel.
-> Keep the empty steel range on the back row, the empty steel counter on
-> the front row and the teak drawer fronts exactly as they are. Output
+> 3. the boxes on the takeaway shelf.
+> Leave the kitchen counter in the lower half exactly as it is. Output
 > 2560×1440, no text.
 
 Drop it in `art/sources/restaurant/restaurant_clean.png`.
