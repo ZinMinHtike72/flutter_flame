@@ -1,0 +1,17 @@
+{
+  "image": "counter.webp",
+  "width": 1666,
+  "height": 413,
+  "frames": {
+    "counter": {
+      "x": 0,
+      "y": 0,
+      "w": 1664,
+      "h": 413,
+      "ox": 0,
+      "oy": 55,
+      "cw": 1664,
+      "ch": 468
+    }
+  }
+}

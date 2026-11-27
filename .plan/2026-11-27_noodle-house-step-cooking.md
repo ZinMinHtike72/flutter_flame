@@ -195,7 +195,8 @@ rules still apply: 100 ms response, 48 dp hit areas and opaque overlay scrims.
 
 ## Implementation
 
-- [ ] status: pending - Receive generated assets; check angle, scale and style; pack atlases (`tool/pack_art.dart`)
+- [x] status: done - Received all 27 generated sheets (`art/sources/restaurant/`); every one matches its grid and passed review, no re-rolls. Known quirks: no stools on the table sheet (seated guests are cut at the hips, so none needed), steam painted into the egg boiler and smoke into the burnt fryer (keep in-game steam light there), the counter is flatter than the keyframe.
+- [x] status: done - Packed with `dart run tool/pack_art.dart restaurant` (new filter argument) into `assets/images/restaurant/`: room 1920×648 (4.7 MB decoded), counter (2.6), kitchen (8.8), dining incl. bowls, topping overlays, takeaway, tea and ticket icons (5.6), waiter (5.0), guests (5.1), chef (1.5) — **33.3 MB decoded, 2.4 MB on disk**. Bowl topping overlays verified to land on every bowl from the JSON offsets alone. Budget note: with the standing customers (33.7 MB) the restaurant needs ~68 MB decoded; the old stall art (market, counter, pots, equipment) is dropped when the restaurant replaces it.
 - [ ] status: pending - Domain: generic cooker state machine and prep chains, with tests
 - [ ] status: pending - Domain: recipes, bowl assembly, tickets, pricing and tips, with tests
 - [ ] status: pending - Domain: tables, waiter tasks, green tea and takeaway queue, with tests

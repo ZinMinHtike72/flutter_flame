@@ -6,4 +6,4 @@ Use `make run-dev` or `make run-prod` on a configured device. Native development
 
 Use `make analyze`, `make test`, and `make test-packages` for static and unit checks. Device behavior and real service access require separate validation.
 
-`make test` runs `flutter test --enable-vmservice` so the allocation guard in `test/app/performance_test.dart` can read the VM's allocation traces; plain `flutter test` skips that one test. Regenerate packed art with `dart run tool/pack_art.dart` in `packages/yumyum_kitchen` (needs `cwebp`).
+`make test` runs `flutter test --enable-vmservice` so the allocation guard in `test/app/performance_test.dart` can read the VM's allocation traces; plain `flutter test` skips that one test. Regenerate packed art with `dart run tool/pack_art.dart` in `packages/yumyum_kitchen` (needs `cwebp`); pass a filter such as `dart run tool/pack_art.dart restaurant` to repack only the outputs whose path contains it, leaving the other atlases byte-identical.

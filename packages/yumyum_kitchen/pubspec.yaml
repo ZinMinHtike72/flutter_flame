@@ -34,5 +34,6 @@ flutter:
   assets:
     - assets/images/
     - assets/images/customers/
+    - assets/images/restaurant/
     - assets/audio/
 

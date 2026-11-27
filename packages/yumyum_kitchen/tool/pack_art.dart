@@ -99,6 +99,198 @@ final atlases = [
         scale: .55,
       ),
     ]),
+  ..._restaurantAtlases,
+];
+
+const _restaurant = "art/sources/restaurant";
+
+/// Kitchen stations and dining props share one scale (.3 of a 1024 cell) so
+/// pots, bowls and trays keep the relative sizes they were painted at.
+final _restaurantAtlases = <Atlas>[
+  Atlas("assets/images/restaurant/counter", [
+    Sheet("$_restaurant/kitchen_counter.png", 1, 1, ["counter"], scale: .65),
+  ]),
+  Atlas("assets/images/restaurant/kitchen", [
+    Sheet("$_restaurant/stove_pot.png", 4, 2, [
+      "stove_empty",
+      "stove_water",
+      "stove_boil",
+      "stove_block",
+      "stove_soften",
+      "stove_ready",
+      "stove_soggy",
+      "stove_fishballs",
+    ], scale: .3),
+    Sheet("$_restaurant/kettle.png", 2, 1, [
+      "kettle_idle",
+      "kettle_pour",
+    ], scale: .3),
+    Sheet("$_restaurant/broths.png", 4, 1, [
+      "broth_chicken",
+      "broth_tomyum",
+      "sauce_mala",
+      "ladle_pour",
+    ], scale: .3),
+    Sheet("$_restaurant/grill.png", 1, 1, ["grill"], scale: .3),
+    Sheet("$_restaurant/beef.png", 4, 1, [
+      "beef_raw",
+      "beef_seared",
+      "beef_cooked",
+      "beef_charred",
+    ], scale: .3),
+    Sheet("$_restaurant/egg_boiler.png", 4, 1, [
+      "eggpot_boil",
+      "eggpot_eggs",
+      "eggpot_cracked",
+      "egg_halves",
+    ], scale: .3),
+    Sheet("$_restaurant/fryer.png", 4, 1, [
+      "fryer_oil",
+      "fryer_frying",
+      "fryer_golden",
+      "fryer_burnt",
+    ], scale: .3),
+    Sheet("$_restaurant/cutting_board.png", 4, 2, [
+      "board_empty",
+      "board_onion",
+      "board_onion_half",
+      "board_onion_chopped",
+      "board_lime",
+      "board_lime_wedges",
+      "board_coriander",
+      "board_chilli",
+    ], scale: .3),
+    Sheet("$_restaurant/trays.png", 4, 4, [
+      "tray_onion",
+      "tray_coriander",
+      "tray_chilli",
+      "tray_lime",
+      "tray_egg",
+      "tray_beef",
+      "tray_shrimp",
+      "tray_fishball",
+      "jar_garlic",
+      "jar_chilli_oil",
+      "source_beef",
+      "source_shrimp",
+      "source_eggs",
+      "source_noodles",
+      "tray_onion_low",
+      "tray_beef_cold",
+    ], scale: .4),
+  ]),
+  Atlas("assets/images/restaurant/dining", [
+    Sheet("$_restaurant/tables.png", 4, 1, [
+      "table",
+      "table_tea",
+      "table_dirty",
+      "table_coins",
+    ], scale: .3),
+    Sheet("$_restaurant/bowls.png", 4, 2, [
+      "bowl_empty",
+      "bowl_noodles",
+      "bowl_chicken",
+      "bowl_tomyum",
+      "bowl_mala",
+      "bowl_dirty",
+      "takeaway_empty",
+      "takeaway_soup",
+    ], scale: .3),
+    // Same cell size and scale as the bowls, so each overlay's offset
+    // (ox, oy) lands on the noodles of a filled bowl.
+    Sheet("$_restaurant/bowl_toppings.png", 4, 2, [
+      "top_beef",
+      "top_egg",
+      "top_shrimp",
+      "top_fishball",
+      "top_onion",
+      "top_coriander",
+      "top_chilli",
+      "top_lime",
+    ], scale: .3),
+    Sheet("$_restaurant/takeaway.png", 4, 1, [
+      "takeaway_lid",
+      "takeaway_bag",
+      "takeaway_cup",
+      "packing_station",
+    ], scale: .3),
+    Sheet("$_restaurant/tea.png", 4, 2, [
+      "tea_urn",
+      "cup_empty",
+      "cup_tea",
+      "cup_milk_tea",
+      "condensed_milk",
+      "glass_lemon_tea",
+      "glass_ice",
+      "green_tea_pour",
+    ], scale: .3),
+    Sheet("$_restaurant/ticket_icons.png", 6, 3, [
+      "icon_noodles",
+      "icon_broth_chicken",
+      "icon_broth_tomyum",
+      "icon_sauce_mala",
+      "icon_onion",
+      "icon_coriander",
+      "icon_chilli",
+      "icon_lime",
+      "icon_egg",
+      "icon_beef",
+      "icon_shrimp",
+      "icon_fishball",
+      "icon_milk_tea",
+      "icon_lemon_tea",
+      "icon_takeaway",
+      "icon_dine_in",
+      "icon_delivery",
+      "icon_green_tea",
+    ]),
+  ]),
+  Atlas("assets/images/restaurant/waiter", [
+    Sheet("$_restaurant/waiter_anim.png", 6, 4, [
+      for (var i = 0; i < 6; i++) "walk_tray_$i",
+      for (var i = 0; i < 6; i++) "walk_dirty_$i",
+      for (var i = 0; i < 3; i++) "place_$i",
+      for (var i = 0; i < 3; i++) "pour_$i",
+      "idle_0",
+      "idle_1",
+      "bow_0",
+      "bow_1",
+      "wipe_0",
+      "wipe_1",
+    ], scale: .55),
+  ]),
+  Atlas("assets/images/restaurant/guests", [
+    for (final c in _customers)
+      Sheet("$_restaurant/customer_${c}_seated.png", 4, 1, [
+        "${c}_wait",
+        "${c}_eat_0",
+        "${c}_eat_1",
+        "${c}_happy",
+      ], scale: .4),
+  ]),
+  Atlas("assets/images/restaurant/chef", [
+    Sheet("$_restaurant/chef_guide.png", 4, 2, [
+      "chef_neutral",
+      "chef_smile",
+      "chef_point",
+      "chef_thumbs",
+      "chef_worried",
+      "chef_cheer",
+      "chef_surprised",
+      "chef_wink",
+    ], scale: .4),
+  ]),
+];
+
+/// Opaque backgrounds: scaled to a width, keeping the top share
+/// (the counter covers the rest), encoded as WebP.
+const _plates = [
+  (
+    "$_restaurant/restaurant_room.png",
+    "assets/images/restaurant/room",
+    1920,
+    .6,
+  ),
 ];
 
 class _Frame {
@@ -120,9 +312,18 @@ const _padding = 2;
 /// Widest atlas tried; every target GPU handles 4096 px textures.
 const _maxWidth = 4096;
 
-Future<void> main() async {
+/// `dart run tool/pack_art.dart [filter...]`: with filters, packs only the
+/// outputs whose path contains one of them (for example `restaurant`), so
+/// existing atlases are not re-encoded.
+Future<void> main(List<String> filters) async {
+  bool wanted(String output) => filters.isEmpty || filters.any(output.contains);
   var decodedBytes = 0;
-  for (final atlas in atlases) {
+  for (final plate in _plates) {
+    if (wanted(plate.$2)) {
+      decodedBytes += _packPlate(plate.$1, plate.$2, plate.$3, plate.$4);
+    }
+  }
+  for (final atlas in atlases.where((a) => wanted(a.output))) {
     final frames = <_Frame>[];
     for (final sheet in atlas.sheets) {
       frames.addAll(_cut(sheet));
@@ -189,6 +390,45 @@ Future<void> main() async {
   stdout.writeln(
     "total decoded ${(decodedBytes / 1048576).toStringAsFixed(1)} MB",
   );
+}
+
+/// Writes one opaque background and returns its decoded size in bytes.
+int _packPlate(String source, String output, int width, double keep) {
+  final image = img.decodePng(File(source).readAsBytesSync())!;
+  final scaled = img.copyResize(
+    image,
+    width: width,
+    interpolation: img.Interpolation.average,
+  );
+  final top = img.copyCrop(
+    scaled,
+    x: 0,
+    y: 0,
+    width: scaled.width,
+    height: (scaled.height * keep).round(),
+  );
+  final png = File("$output.png")..parent.createSync(recursive: true);
+  png.writeAsBytesSync(img.encodePng(top));
+  final result = Process.runSync("cwebp", [
+    "-quiet",
+    "-q",
+    "85",
+    png.path,
+    "-o",
+    "$output.webp",
+  ]);
+  if (result.exitCode != 0) {
+    stderr.writeln(result.stderr);
+    exit(1);
+  }
+  png.deleteSync();
+  final bytes = top.width * top.height * 4;
+  stdout.writeln(
+    "$output.webp  ${top.width}x${top.height}  "
+    "${(File("$output.webp").lengthSync() / 1024).round()} KB on disk, "
+    "${(bytes / 1048576).toStringAsFixed(1)} MB decoded",
+  );
+  return bytes;
 }
 
 List<_Frame> _cut(Sheet sheet) {
