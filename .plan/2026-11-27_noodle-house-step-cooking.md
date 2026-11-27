@@ -197,7 +197,7 @@ rules still apply: 100 ms response, 48 dp hit areas and opaque overlay scrims.
 
 - [x] status: done - Received all 27 generated sheets (`art/sources/restaurant/`); every one matches its grid and passed review, no re-rolls. Known quirks: no stools on the table sheet (seated guests are cut at the hips, so none needed), steam painted into the egg boiler and smoke into the burnt fryer (keep in-game steam light there), the counter is flatter than the keyframe.
 - [x] status: done - Packed with `dart run tool/pack_art.dart restaurant` (new filter argument) into `assets/images/restaurant/`: room 1920×648 (4.7 MB decoded), counter (2.6), kitchen (8.8), dining incl. bowls, topping overlays, takeaway, tea and ticket icons (5.6), waiter (5.0), guests (5.1), chef (1.5) — **33.3 MB decoded, 2.4 MB on disk**. Bowl topping overlays verified to land on every bowl from the JSON offsets alone. Budget note: with the standing customers (33.7 MB) the restaurant needs ~68 MB decoded; the old stall art (market, counter, pots, equipment) is dropped when the restaurant replaces it.
-- [ ] status: pending - Domain: generic cooker state machine and prep chains, with tests
+- [x] status: done - Domain: generic cooker state machine and prep chains, with tests (#38) — `domain/cooking/`: `Food` and `Topping` data, `Cooker` (`CookerKind` pot/grill/egg boiler/fryer/tea urn; phases empty → heating → hot → cooking → needsFlip → perfect → ready → ruined; `advanceTo` hits each deadline exactly; `progressPermille` is an int so it never boxes), `ToppingTray` (ring buffer, FIFO, hot portions cold after 25 s, jars unlimited), `CuttingBoard` (3 cuts). Not wired into the game yet.
 - [ ] status: pending - Domain: recipes, bowl assembly, tickets, pricing and tips, with tests
 - [ ] status: pending - Domain: tables, waiter tasks, green tea and takeaway queue, with tests
 - [ ] status: pending - Domain: 12-day campaign, star lines and scripted-chef winnability test
@@ -213,7 +213,7 @@ rules still apply: 100 ms response, 48 dp hit areas and opaque overlay scrims.
 
 ## Test Plan
 
-- [ ] status: pending - Cooker: every transition, perfect window and ruin boundary, at the 30 Hz step and on slow frames
+- [x] status: done - Cooker: every transition, perfect window and ruin boundary, at the 30 Hz step and on slow frames (`packages/yumyum_kitchen/test/cooker_test.dart`, 20 tests); zero allocations over 3000 frames of a full day-12 line (`test/app/cooking_allocation_test.dart`, sharing `test/helpers/allocation_trace.dart` with the frame guard)
 - [ ] status: pending - Assembly: order rules (noodles first, one broth), exact recipe match, wrong items rejected
 - [ ] status: pending - Dining: table life cycle, waiter queue order and walk time, green tea once per guest, takeaway pickup
 - [ ] status: pending - Campaign: each day winnable at 1★ by a scripted chef with no upgrades
@@ -225,6 +225,7 @@ rules still apply: 100 ms response, 48 dp hit areas and opaque overlay scrims.
 
 ## Verification
 
-- status: pending
+- status: pending (whole feature); per-step results below
+- #38 (2026-11-27): `flutter analyze` no issues; `flutter test --enable-vmservice` 33 passed (frame guard 0 allocations, cooking guard 0 allocations — it first caught a boxed double from `Cooker.progress`, now `progressPermille`); package tests 133 passed; ui kit 109; network 65; coverage `cooker.dart` 98.4 %, `cutting_board.dart`, `food.dart`, `topping_tray.dart` 100 %, `yumyum_kitchen` 87.2 %; `dart format --set-exit-if-changed` and `git diff --check` clean
 - Command: `flutter analyze`, `make test`, `make test-packages`, `make coverage`
 - Result: (fill after running)

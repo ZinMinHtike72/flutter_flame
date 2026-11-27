@@ -1,6 +1,6 @@
 # Features
 
-Last updated: 2026-11-26
+Last updated: 2026-11-27
 
 | Feature | Route | UI | Data/API | Tests |
 | --- | --- | --- | --- | --- |
@@ -23,6 +23,7 @@ Last updated: 2026-11-26
 - **Allocation-free frames**: steady frames create no objects from game code. Geometry (pack, halos, discard marks, garnish insets, cook bars, tickets) is cached per layout as rects and paths; sprites draw through canvas transforms with precomputed source rects; the rules step uses index loops; Flame's unused camera subtree is neither rendered nor ticked. `test/app/performance_test.dart` traces allocations to enforce it (needs `flutter test --enable-vmservice`, which `make test` uses; otherwise it is skipped).
 - **Preload**: every image, atlas and sound loads before the game mounts (`YumYumKitchenGame.preloaded`); until then there is no menu, no shift and no rules clock.
 - **Motion and feedback**: every counter tap is drawn pressed on the very next 30 fps frame (0.94 scale easing back over 120 ms; a fading ring under reduced motion) with its haptic on the same frame — selection click for pack/transfer/garnish/discard, light on serve, medium on a streak, heavy on a burnt pot, all off with the Haptics setting. Pages cross-fade (220 ms; pause overlay 160 ms) with the outgoing page ignoring taps (`AppFadeSwitcher`); coins count up in the HUD; a new streak lantern pops in; a pot shakes when it burns; the awning lifts off the entrance (600 ms). Reduced motion makes all of these instant or still.
+- **Step-by-step cooking rules (Noodle House, not wired into the game yet)**: `domain/cooking/` holds the pure-Dart rules for the restaurant redesign (#35): `Cooker` runs every heat station (pot: water → boil → noodles or fish balls; grill with a flip; egg boiler; fryer; tea urn) through perfect and ready windows to ruined, `ToppingTray` keeps portions oldest first and lets hot ones go cold after 25 s, and `CuttingBoard` chops greens in three cuts. Tests: `packages/yumyum_kitchen/test/cooker_test.dart`, `test/app/cooking_allocation_test.dart`.
 - **Debug**: `YumYumKitchenScreen(showHitBoxes: true)` paints the safe stage, zones and hit boxes; the standalone app enables it with `--flavor development --dart-define=SHOW_HIT_BOXES=true`.
 - Rules, campaign and progress are pure Dart in `domain/`; progress is saved locally and settled once per run.
 

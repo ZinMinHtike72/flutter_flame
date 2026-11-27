@@ -1,7 +1,5 @@
 import "dart:async";
 import "dart:convert";
-import "dart:developer";
-import "dart:isolate" as iso;
 import "dart:math";
 import "dart:ui";
 
@@ -13,9 +11,6 @@ import "package:game_test/app/app.dart";
 import "package:game_test/app/di/injection_container.dart";
 import "package:game_test/core/env/app_flavor.dart";
 import "package:shared_preferences/shared_preferences.dart";
-import "package:vm_service/vm_service.dart"
-    show ClassRef, CpuSample, FuncRef, VmService;
-import "package:vm_service/vm_service_io.dart";
 import "package:yumyum_kitchen/src/features/kitchen/domain/kitchen_run.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/bloc/kitchen_bloc.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/game/kitchen_audio.dart";
@@ -23,26 +18,8 @@ import "package:yumyum_kitchen/src/features/kitchen/presentation/game/yum_yum_ki
 import "package:yumyum_kitchen/src/features/kitchen/presentation/widgets/market_lobby.dart";
 import "package:yumyum_kitchen/src/features/kitchen/presentation/widgets/shift_overlays.dart";
 
+import "../helpers/allocation_trace.dart";
 import "../helpers/golden.dart";
-
-/// Classes whose allocations are traced during steady frames.
-const _traced = {
-  "Rect",
-  "RRect",
-  "Offset",
-  "Size",
-  "Color",
-  "Vector2",
-  "_Closure",
-  "_Record",
-  "_Float32List",
-  "Path",
-  "_GrowableList",
-  "_List",
-  "ListIterator",
-  "_CompactIterator",
-  "_Set",
-};
 
 /// Our frame-loop code: an allocation whose stack passes through any of
 /// these classes counts against the game.
@@ -150,8 +127,7 @@ void main() {
   testWidgets(
     "steady 30 fps frames allocate no geometry, closures or iterators",
     (tester) async {
-      final info = await tester.runAsync(Service.getInfo);
-      final uri = info?.serverWebSocketUri;
+      final uri = await tester.runAsync(vmServiceUri);
       if (uri == null) {
         markTestSkipped(
           "Needs the VM service: run `flutter test --enable-vmservice` "
@@ -193,90 +169,33 @@ void main() {
         ..deadline = run.now + 600000;
       run.pots[0].deadline = run.now + 600000;
 
-      await tester.runAsync(() async {
-        final VmService vm = await vmServiceConnectUri(uri.toString());
-        final id = Service.getIsolateId(iso.Isolate.current)!;
-
-        void frames(int n) {
-          for (var i = 0; i < n; i++) {
-            game.update(1 / 30);
-            final recorder = PictureRecorder();
-            game.render(Canvas(recorder));
-            recorder.endRecording().dispose();
-          }
+      void frames(int n) {
+        for (var i = 0; i < n; i++) {
+          game.update(1 / 30);
+          final recorder = PictureRecorder();
+          game.render(Canvas(recorder));
+          recorder.endRecording().dispose();
         }
+      }
 
-        // Warm up so every path is compiled and every cache is built.
-        frames(300);
-        final profile = await vm.getAllocationProfile(id);
-        final classes = {
-          for (final m in profile.members!)
-            if (_traced.contains(m.classRef!.name))
-              m.classRef!.name!: m.classRef!.id!,
-        };
-        final origin = (await vm.getVMTimelineMicros()).timestamp!;
-        for (final cid in classes.values) {
-          await vm.setTraceClassAllocation(id, cid, true);
-        }
-        const steadyFrames = 300;
-        frames(steadyFrames);
-        for (final cid in classes.values) {
-          await vm.setTraceClassAllocation(id, cid, false);
-        }
-
-        // Attribute every traced allocation by its stack.
-        final ours = <String, int>{};
-        for (final MapEntry(key: name, value: cid) in classes.entries) {
-          final traces = await vm.getAllocationTraces(
-            id,
-            classId: cid,
-            timeOriginMicros: origin,
-            timeExtentMicros: 1 << 40,
-          );
-          for (final sample in traces.samples ?? const <CpuSample>[]) {
-            final stack = [
-              for (final i in sample.stack ?? const <int>[])
-                traces.functions![i].function,
-            ];
-            String? owner(Object? fn) {
-              if (fn is! FuncRef) {
-                return null;
-              }
-              final o = fn.owner;
-              return o is ClassRef
-                  ? o.name
-                  : o is FuncRef
-                  ? owner(o)
-                  : null;
-            }
-
-            final qualified = [
-              for (final fn in stack)
-                if (fn is FuncRef) "${owner(fn)}.${fn.name}",
-            ];
-            if (qualified.any(_allowed.contains)) {
-              continue;
-            }
-            final inOurs = stack.map(owner).any(_ours.contains);
-            if (!inOurs) {
-              continue;
-            }
-            final where = [
-              for (final fn in stack.take(4))
-                if (fn is FuncRef) "${owner(fn)}.${fn.name}",
-            ].join(" < ");
-            ours["$name at $where"] = (ours["$name at $where"] ?? 0) + 1;
-          }
-        }
-        await vm.dispose();
-        final total = ours.values.fold(0, (a, b) => a + b);
-        // ignore: avoid_print
-        print(
-          "Allocations from game code over $steadyFrames steady frames: "
-          "$total ${ours.isEmpty ? "" : ours}",
-        );
-        expect(ours, isEmpty, reason: "frame loop allocates: $ours");
-      });
+      const steadyFrames = 300;
+      final ours = await tester.runAsync(
+        () => traceAllocations(
+          uri,
+          ours: _ours,
+          allowed: _allowed,
+          // Warm up so every path is compiled and every cache is built.
+          warmUp: () => frames(300),
+          measure: () => frames(steadyFrames),
+        ),
+      );
+      final total = ours!.values.fold(0, (a, b) => a + b);
+      // ignore: avoid_print
+      print(
+        "Allocations from game code over $steadyFrames steady frames: "
+        "$total ${ours.isEmpty ? "" : ours}",
+      );
+      expect(ours, isEmpty, reason: "frame loop allocates: $ours");
       await tester.pumpWidget(const SizedBox());
       await tester.pump();
     },
